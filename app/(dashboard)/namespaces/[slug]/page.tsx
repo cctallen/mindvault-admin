@@ -240,7 +240,7 @@ function MemoriesTab({ namespaceId, token }: { namespaceId: string; token: strin
       {!debouncedSearch && pagedData && (
         <div className="flex items-center justify-between">
           <p className="text-sm text-muted-foreground">
-            Page {page} of {Math.ceil((pagedData.totalCount || 1) / 20)}
+            Page {page} of {Math.ceil(((pagedData.total ?? pagedData.totalCount ?? 1) || 1) / 20)}
           </p>
           <div className="flex gap-2">
             <Button variant="outline" size="sm" disabled={page === 1} onClick={() => setPage((p) => p - 1)}>
@@ -249,7 +249,7 @@ function MemoriesTab({ namespaceId, token }: { namespaceId: string; token: strin
             <Button
               variant="outline"
               size="sm"
-              disabled={page * 20 >= pagedData.totalCount}
+              disabled={page * 20 >= (pagedData.total ?? pagedData.totalCount ?? 0)}
               onClick={() => setPage((p) => p + 1)}
             >
               <ChevronRight className="h-4 w-4" />
@@ -326,7 +326,7 @@ function AgentsTab({ namespaceId, token, userId }: { namespaceId: string; token:
 
       <div className="flex gap-3">
         <Dialog open={createOpen} onOpenChange={setCreateOpen}>
-          <DialogTrigger render={<Button><Plus className="h-4 w-4 mr-2" />Add Agent</Button>} />
+          <DialogTrigger><Button><Plus className="h-4 w-4 mr-2" />Add Agent</Button></DialogTrigger>
           <DialogContent>
             <DialogHeader>
               <DialogTitle>Create Agent</DialogTitle>
@@ -349,7 +349,7 @@ function AgentsTab({ namespaceId, token, userId }: { namespaceId: string; token:
         </Dialog>
 
         <Dialog open={rotateConfirmOpen} onOpenChange={setRotateConfirmOpen}>
-          <DialogTrigger render={<Button variant="outline"><RefreshCw className="h-4 w-4 mr-2" />Rotate Key</Button>} />
+          <DialogTrigger><Button variant="outline"><RefreshCw className="h-4 w-4 mr-2" />Rotate Key</Button></DialogTrigger>
           <DialogContent>
             <DialogHeader>
               <DialogTitle>Rotate Agent API Key</DialogTitle>
@@ -515,7 +515,7 @@ function MembersTab({ namespaceId, token }: { namespaceId: string; token: string
     <div className="space-y-4">
       <div className="flex justify-end">
         <Dialog open={addOpen} onOpenChange={setAddOpen}>
-          <DialogTrigger render={<Button><Plus className="h-4 w-4 mr-2" />Add Member</Button>} />
+          <DialogTrigger><Button><Plus className="h-4 w-4 mr-2" />Add Member</Button></DialogTrigger>
           <DialogContent>
             <DialogHeader>
               <DialogTitle>Add Member</DialogTitle>

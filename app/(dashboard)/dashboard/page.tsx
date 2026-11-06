@@ -11,7 +11,7 @@ export default async function DashboardPage() {
   const session = await auth()
   const result = await getNamespaces(session!.accessToken, 1, 5).catch(() => null)
   const namespaces = result?.items ?? []
-  const totalCount = result?.totalCount ?? 0
+  const totalCount = result?.total ?? result?.totalCount ?? 0
 
   return (
     <div className="space-y-6">

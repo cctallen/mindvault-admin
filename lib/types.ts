@@ -53,7 +53,8 @@ export interface Member {
 
 export interface PagedResult<T> {
   items: T[]
-  totalCount: number
+  total: number
+  totalCount?: number // alias — some endpoints return total, some totalCount
   page: number
   pageSize: number
 }

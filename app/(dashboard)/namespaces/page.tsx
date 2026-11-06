@@ -136,7 +136,9 @@ export default function NamespacesPage() {
       <div className="flex items-center justify-between">
         <h1 className="text-3xl font-bold">Namespaces</h1>
         <Dialog open={createOpen} onOpenChange={setCreateOpen}>
-          <DialogTrigger render={<Button><Plus className="h-4 w-4 mr-2" />New Namespace</Button>} />
+          <DialogTrigger>
+            <Button><Plus className="h-4 w-4 mr-2" />New Namespace</Button>
+          </DialogTrigger>
           <DialogContent>
             <DialogHeader>
               <DialogTitle>Create Namespace</DialogTitle>
