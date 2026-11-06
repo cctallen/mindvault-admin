@@ -7,7 +7,12 @@ import type {
   Member,
 } from "@/lib/types"
 
-const BASE_URL = process.env.NEXT_PUBLIC_API_URL || "http://3.129.106.237:5228"
+// Server-side: hit the API directly (with self-signed cert bypass via proxy route)
+// Client-side (browser): route through /api/proxy to avoid mixed-content + cert issues
+const BASE_URL =
+  typeof window === "undefined"
+    ? process.env.API_URL || process.env.NEXT_PUBLIC_API_URL || "http://3.129.106.237:5228"
+    : "/api/proxy"
 
 async function apiFetch<T>(
   path: string,
