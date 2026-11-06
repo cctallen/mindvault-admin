@@ -370,7 +370,7 @@ function AgentsTab({ namespaceId, token, userId }: { namespaceId: string; token:
           <ConfirmDialog
             title="Rotate API Key"
             description="This will invalidate the current key immediately. The new key will be shown once."
-            onConfirm={() => rotateMutation.mutateAsync(row.original.id)}
+            onConfirm={() => rotateMutation.mutateAsync(row.original.id).then(() => {})}
             isLoading={rotateMutation.isPending}
             trigger={
               <Button variant="outline" size="sm">
