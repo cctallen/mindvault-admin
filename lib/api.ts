@@ -179,6 +179,15 @@ export async function deleteMemory(
 }
 
 // Agents
+export async function getAgents(
+  token: string,
+  namespaceId: string
+): Promise<Agent[]> {
+  return apiFetch<Agent[]>(`/api/namespaces/${namespaceId}/agents`, {
+    headers: authHeaders(token),
+  })
+}
+
 export async function createAgent(
   token: string,
   namespaceId: string,
@@ -191,12 +200,23 @@ export async function createAgent(
   })
 }
 
+export async function deleteAgent(
+  token: string,
+  namespaceId: string,
+  agentId: string
+): Promise<void> {
+  return apiFetch<void>(`/api/namespaces/${namespaceId}/agents/${agentId}`, {
+    method: "DELETE",
+    headers: authHeaders(token),
+  })
+}
+
 export async function rotateAgentKey(
   token: string,
   namespaceId: string,
   agentId: string
-): Promise<Agent> {
-  return apiFetch<Agent>(
+): Promise<{ apiKey: string }> {
+  return apiFetch<{ apiKey: string }>(
     `/api/namespaces/${namespaceId}/agents/${agentId}/rotate-key`,
     {
       method: "POST",

@@ -13,7 +13,9 @@ import {
   searchMemories,
   createMemory,
   deleteMemory,
+  getAgents,
   createAgent,
+  deleteAgent,
   rotateAgentKey,
   getMembers,
   addMember,
@@ -264,12 +266,16 @@ function MemoriesTab({ namespaceId, token }: { namespaceId: string; token: strin
 // ——— AGENTS TAB ———
 
 function AgentsTab({ namespaceId, token, userId }: { namespaceId: string; token: string; userId: string }) {
+  const queryClient = useQueryClient()
   const { toast } = useToast()
   const [createOpen, setCreateOpen] = useState(false)
   const [newKey, setNewKey] = useState<string | null>(null)
   const [keyModalOpen, setKeyModalOpen] = useState(false)
-  const [rotateId, setRotateId] = useState("")
-  const [rotateConfirmOpen, setRotateConfirmOpen] = useState(false)
+
+  const { data: agents = [], isLoading } = useQuery({
+    queryKey: ["agents", namespaceId],
+    queryFn: () => getAgents(token, namespaceId),
+  })
 
   const agentSchema = z.object({
     name: z.string().min(1, "Name is required"),
@@ -290,6 +296,7 @@ function AgentsTab({ namespaceId, token, userId }: { namespaceId: string; token:
         requesterId: userId,
       }),
     onSuccess: (agent) => {
+      queryClient.invalidateQueries({ queryKey: ["agents", namespaceId] })
       if (agent.apiKey) {
         setNewKey(agent.apiKey)
         setKeyModalOpen(true)
@@ -303,28 +310,93 @@ function AgentsTab({ namespaceId, token, userId }: { namespaceId: string; token:
     },
   })
 
+  const deleteMutation = useMutation({
+    mutationFn: (agentId: string) => deleteAgent(token, namespaceId, agentId),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["agents", namespaceId] })
+      toast({ title: "Agent deleted" })
+    },
+    onError: (err) => {
+      toast({ title: "Failed to delete agent", description: err instanceof Error ? err.message : "Unknown", variant: "destructive" })
+    },
+  })
+
   const rotateMutation = useMutation({
     mutationFn: (agentId: string) => rotateAgentKey(token, namespaceId, agentId),
-    onSuccess: (agent) => {
-      if (agent.apiKey) {
-        setNewKey(agent.apiKey)
+    onSuccess: (result) => {
+      if (result.apiKey) {
+        setNewKey(result.apiKey)
         setKeyModalOpen(true)
       }
-      setRotateId("")
-      setRotateConfirmOpen(false)
     },
     onError: (err) => {
       toast({ title: "Failed to rotate key", description: err instanceof Error ? err.message : "Unknown", variant: "destructive" })
     },
   })
 
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const columns: any[] = [
+    {
+      accessorKey: "name",
+      header: "Name",
+      cell: ({ row }: { row: { original: Agent } }) => (
+        <span className="font-medium">{row.original.name}</span>
+      ),
+    },
+    {
+      accessorKey: "description",
+      header: "Description",
+      cell: ({ row }: { row: { original: Agent } }) => (
+        <span className="text-sm text-muted-foreground">{row.original.description ?? "—"}</span>
+      ),
+    },
+    {
+      accessorKey: "id",
+      header: "Agent ID",
+      cell: ({ row }: { row: { original: Agent } }) => (
+        <span className="font-mono text-xs">{row.original.id}</span>
+      ),
+    },
+    {
+      accessorKey: "createdAt",
+      header: "Created",
+      cell: ({ row }: { row: { original: Agent } }) =>
+        new Date(row.original.createdAt).toLocaleDateString(),
+    },
+    {
+      id: "actions",
+      cell: ({ row }: { row: { original: Agent } }) => (
+        <div className="flex items-center gap-2">
+          <ConfirmDialog
+            title="Rotate API Key"
+            description="This will invalidate the current key immediately. The new key will be shown once."
+            onConfirm={() => rotateMutation.mutateAsync(row.original.id)}
+            isLoading={rotateMutation.isPending}
+            trigger={
+              <Button variant="outline" size="sm">
+                <RefreshCw className="h-4 w-4 mr-1" />Rotate Key
+              </Button>
+            }
+          />
+          <ConfirmDialog
+            title="Delete Agent"
+            description={`Delete agent "${row.original.name}"? This cannot be undone.`}
+            onConfirm={() => deleteMutation.mutateAsync(row.original.id)}
+            isLoading={deleteMutation.isPending}
+            trigger={
+              <Button variant="destructive" size="sm">
+                <Trash2 className="h-4 w-4" />
+              </Button>
+            }
+          />
+        </div>
+      ),
+    },
+  ]
+
   return (
     <div className="space-y-6">
-      <p className="text-muted-foreground">
-        Agent management — add new agents below. Note: agent list endpoint coming soon.
-      </p>
-
-      <div className="flex gap-3">
+      <div className="flex justify-end">
         <Dialog open={createOpen} onOpenChange={setCreateOpen}>
           <DialogTrigger><Button><Plus className="h-4 w-4 mr-2" />Add Agent</Button></DialogTrigger>
           <DialogContent>
@@ -347,36 +419,9 @@ function AgentsTab({ namespaceId, token, userId }: { namespaceId: string; token:
             </form>
           </DialogContent>
         </Dialog>
-
-        <Dialog open={rotateConfirmOpen} onOpenChange={setRotateConfirmOpen}>
-          <DialogTrigger><Button variant="outline"><RefreshCw className="h-4 w-4 mr-2" />Rotate Key</Button></DialogTrigger>
-          <DialogContent>
-            <DialogHeader>
-              <DialogTitle>Rotate Agent API Key</DialogTitle>
-            </DialogHeader>
-            <div className="space-y-4">
-              <div className="space-y-2">
-                <Label>Agent ID</Label>
-                <Input
-                  placeholder="Enter agent ID"
-                  value={rotateId}
-                  onChange={(e) => setRotateId(e.target.value)}
-                />
-              </div>
-              <p className="text-sm text-muted-foreground">
-                This will invalidate the existing key immediately.
-              </p>
-              <Button
-                className="w-full"
-                disabled={!rotateId || rotateMutation.isPending}
-                onClick={() => rotateMutation.mutate(rotateId)}
-              >
-                {rotateMutation.isPending ? "Rotating..." : "Rotate Key"}
-              </Button>
-            </div>
-          </DialogContent>
-        </Dialog>
       </div>
+
+      <DataTable columns={columns} data={agents} isLoading={isLoading} />
 
       {/* API Key reveal modal */}
       <Dialog open={keyModalOpen} onOpenChange={setKeyModalOpen}>
