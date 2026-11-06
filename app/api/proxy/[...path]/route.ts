@@ -1,8 +1,7 @@
 import { NextRequest, NextResponse } from "next/server"
-import https from "https"
 
 // Allow self-signed certs for the backend API (remove once proper SSL is in place)
-const agent = new https.Agent({ rejectUnauthorized: false })
+process.env.NODE_TLS_REJECT_UNAUTHORIZED = "0"
 
 const API_URL = process.env.API_URL || process.env.NEXT_PUBLIC_API_URL || "http://3.129.106.237:5228"
 
@@ -50,8 +49,8 @@ async function proxyRequest(req: NextRequest, params: { path: string[] }) {
       method: req.method,
       headers,
       body,
-      // @ts-expect-error — node-fetch agent for self-signed cert
-      agent: targetUrl.startsWith("https") ? agent : undefined,
+      // @ts-expect-error — node fetch options
+      agent: undefined,
     })
 
     const text = await res.text()
