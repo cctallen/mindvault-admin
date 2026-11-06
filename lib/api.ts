@@ -224,7 +224,7 @@ export async function addMember(
   return apiFetch<Member>(`/api/namespaces/${namespaceId}/members`, {
     method: "POST",
     headers: authHeaders(token),
-    body: JSON.stringify({ userId, role }),
+    body: JSON.stringify({ userId, role: Number(role) }),
   })
 }
 

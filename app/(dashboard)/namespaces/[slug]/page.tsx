@@ -412,7 +412,7 @@ function MembersTab({ namespaceId, token }: { namespaceId: string; token: string
   })
 
   const addSchema = z.object({
-    userId: z.string().min(1, "User ID is required"),
+    userId: z.string().uuid("Must be a valid user UUID"),
     role: z.string(),
   })
   type AddForm = z.infer<typeof addSchema>
@@ -484,21 +484,21 @@ function MembersTab({ namespaceId, token }: { namespaceId: string; token: string
         <div className="flex items-center gap-2">
           <Select
             defaultValue={String(row.original.role)}
-            onValueChange={(v) => updateRoleMutation.mutate({ memberId: row.original.id, role: Number(v ?? "1") })}
+            onValueChange={(v) => updateRoleMutation.mutate({ memberId: row.original.userId, role: Number(v ?? "1") })}
           >
             <SelectTrigger className="w-28 h-8">
               <SelectValue />
             </SelectTrigger>
             <SelectContent>
-              <SelectItem value="1">Viewer</SelectItem>
-              <SelectItem value="2">Editor</SelectItem>
-              <SelectItem value="3">Owner</SelectItem>
+              <SelectItem value="1">Reader</SelectItem>
+              <SelectItem value="2">Writer</SelectItem>
+              <SelectItem value="3">Admin</SelectItem>
             </SelectContent>
           </Select>
           <ConfirmDialog
             title="Remove Member"
             description="Remove this member from the namespace?"
-            onConfirm={() => removeMutation.mutateAsync(row.original.id)}
+            onConfirm={() => removeMutation.mutateAsync(row.original.userId)}
             isLoading={removeMutation.isPending}
             trigger={
               <Button variant="destructive" size="sm">
@@ -531,9 +531,9 @@ function MembersTab({ namespaceId, token }: { namespaceId: string; token: string
                 <Select value={roleVal} onValueChange={(v) => setValue("role", v ?? "1")}>
                   <SelectTrigger><SelectValue /></SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="1">Viewer</SelectItem>
-                    <SelectItem value="2">Editor</SelectItem>
-                    <SelectItem value="3">Owner</SelectItem>
+                    <SelectItem value="1">Reader</SelectItem>
+                    <SelectItem value="2">Writer</SelectItem>
+                    <SelectItem value="3">Admin</SelectItem>
                   </SelectContent>
                 </Select>
               </div>

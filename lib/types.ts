@@ -74,9 +74,9 @@ export enum MemoryVisibility {
 }
 
 export enum NamespaceRole {
-  Viewer = 1,
-  Editor = 2,
-  Owner = 3,
+  Reader = 1,
+  Writer = 2,
+  Admin = 3,
 }
 
 export const MEMORY_TYPE_LABELS: Record<number, string> = {
@@ -94,7 +94,7 @@ export const MEMORY_VISIBILITY_LABELS: Record<number, string> = {
 }
 
 export const NAMESPACE_ROLE_LABELS: Record<number, string> = {
-  1: "Viewer",
-  2: "Editor",
-  3: "Owner",
+  1: "Reader",
+  2: "Writer",
+  3: "Admin",
 }
