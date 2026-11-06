@@ -2,6 +2,10 @@ import NextAuth from "next-auth"
 import Credentials from "next-auth/providers/credentials"
 import { login } from "@/lib/api"
 
+// Must be set before any HTTPS fetch — self-signed cert on backend
+// Remove once a proper CA-signed cert is installed
+process.env.NODE_TLS_REJECT_UNAUTHORIZED = "0"
+
 export const { handlers, signIn, signOut, auth } = NextAuth({
   providers: [
     Credentials({
@@ -20,7 +24,8 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
             email: credentials.email as string,
             ...tokens,
           }
-        } catch {
+        } catch (err) {
+          console.error("[auth] authorize failed:", err)
           return null
         }
       },
