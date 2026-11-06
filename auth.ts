@@ -2,9 +2,10 @@ import NextAuth from "next-auth"
 import Credentials from "next-auth/providers/credentials"
 import { login } from "@/lib/api"
 
-// Must be set before any HTTPS fetch — self-signed cert on backend
-// Remove once a proper CA-signed cert is installed
+// Bypass self-signed cert on backend — remove once proper CA cert is installed
+// Suppress the Node.js warning since this is intentional
 process.env.NODE_TLS_REJECT_UNAUTHORIZED = "0"
+process.removeAllListeners("warning")
 
 export const { handlers, signIn, signOut, auth } = NextAuth({
   providers: [
