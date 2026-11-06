@@ -54,7 +54,7 @@ export default function NamespacesPage() {
     mutationFn: (formData: CreateForm) =>
       createNamespace(session!.accessToken, {
         ...formData,
-        ownerId: session!.user?.email ?? "",
+        ownerId: session!.userId ?? "",
       }),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["namespaces"] })

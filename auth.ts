@@ -20,9 +20,15 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
             credentials.email as string,
             credentials.password as string
           )
+          // Decode the JWT to extract the user's UUID from the nameidentifier claim
+          const [, payloadB64] = tokens.accessToken.split(".")
+          const payload = JSON.parse(Buffer.from(payloadB64, "base64url").toString())
+          const userId: string =
+            payload["http://schemas.xmlsoap.org/ws/2005/05/identity/claims/nameidentifier"] ?? ""
           return {
-            id: "user",
+            id: userId,
             email: credentials.email as string,
+            userId,
             ...tokens,
           }
         } catch (err) {
@@ -37,11 +43,13 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
       if (user) {
         token.accessToken = (user as Record<string, unknown>).accessToken as string
         token.refreshToken = (user as Record<string, unknown>).refreshToken as string
+        token.userId = (user as Record<string, unknown>).userId as string
       }
       return token
     },
     async session({ session, token }) {
       session.accessToken = token.accessToken as string
+      session.userId = token.userId as string
       return session
     },
   },
