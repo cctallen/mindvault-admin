@@ -570,7 +570,7 @@ export default function NamespaceDetailPage({ params }: { params: Promise<{ slug
   }
 
   const token = session!.accessToken
-  const userId = session?.user?.email ?? ""
+  const userId = session?.userId ?? ""
 
   return (
     <div className="space-y-6">
