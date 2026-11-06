@@ -55,6 +55,11 @@ async function proxyRequest(req: NextRequest, params: { path: string[] }) {
 
     const text = await res.text()
 
+    // 204 No Content — must return no body (Next.js/fetch spec enforces this)
+    if (res.status === 204) {
+      return new NextResponse(null, { status: 204 })
+    }
+
     return new NextResponse(text, {
       status: res.status,
       headers: {
