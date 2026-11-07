@@ -180,7 +180,7 @@ export default function AgentsPage() {
               <>
                 <div className="space-y-2">
                   <Label>Namespace</Label>
-                  <Select value={selectedNs} onValueChange={(v) => setSelectedNs(v ?? "")}>
+                  <Select value={selectedNs} onValueChange={(v: string | null) => setSelectedNs(v ?? "")}>
                     <SelectTrigger><SelectValue placeholder="Select a namespace..." /></SelectTrigger>
                     <SelectContent>
                       {unassignedNamespaces.map((ns) => (
