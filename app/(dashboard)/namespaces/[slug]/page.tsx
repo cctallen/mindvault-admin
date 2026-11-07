@@ -14,6 +14,7 @@ import {
   createMemory,
   deleteMemory,
   getAgents,
+  getAllAgents,
   createAgent,
   deleteAgent,
   addAgentToNamespace,
@@ -40,7 +41,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from 
 import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetTrigger } from "@/components/ui/sheet"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { Avatar, AvatarFallback } from "@/components/ui/avatar"
-import { Plus, Trash2, RefreshCw, ChevronLeft, ChevronRight } from "lucide-react"
+import { Plus, Trash2, RefreshCw, ChevronLeft, ChevronRight, Link2, Unlink } from "lucide-react"
 import { useToast } from "@/hooks/use-toast"
 import { useDebounce } from "@/hooks/use-debounce"
 
@@ -271,13 +272,27 @@ function AgentsTab({ namespaceId, token, userId }: { namespaceId: string; token:
   const queryClient = useQueryClient()
   const { toast } = useToast()
   const [createOpen, setCreateOpen] = useState(false)
+  const [assignOpen, setAssignOpen] = useState(false)
+  const [selectedAgentId, setSelectedAgentId] = useState("")
   const [newKey, setNewKey] = useState<string | null>(null)
   const [keyModalOpen, setKeyModalOpen] = useState(false)
 
+  // Agents already in this namespace
   const { data: agents = [], isLoading } = useQuery({
     queryKey: ["agents", namespaceId],
     queryFn: () => getAgents(token, namespaceId),
   })
+
+  // All agents the user has access to (for assign-existing picker)
+  const { data: allAgents = [] } = useQuery({
+    queryKey: ["agents-all"],
+    queryFn: () => getAllAgents(token),
+    enabled: assignOpen,
+  })
+
+  // Agents not yet in this namespace
+  const currentIds = new Set(agents.map((a) => a.id))
+  const assignableAgents = allAgents.filter((a) => !currentIds.has(a.id))
 
   const agentSchema = z.object({
     name: z.string().min(1, "Name is required"),
@@ -299,6 +314,7 @@ function AgentsTab({ namespaceId, token, userId }: { namespaceId: string; token:
       }),
     onSuccess: (agent) => {
       queryClient.invalidateQueries({ queryKey: ["agents", namespaceId] })
+      queryClient.invalidateQueries({ queryKey: ["agents-all"] })
       if (agent.apiKey) {
         setNewKey(agent.apiKey)
         setKeyModalOpen(true)
@@ -312,10 +328,37 @@ function AgentsTab({ namespaceId, token, userId }: { namespaceId: string; token:
     },
   })
 
+  const assignMutation = useMutation({
+    mutationFn: (agentId: string) => addAgentToNamespace(token, agentId, namespaceId),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["agents", namespaceId] })
+      queryClient.invalidateQueries({ queryKey: ["agents-all"] })
+      toast({ title: "Agent assigned to namespace" })
+      setSelectedAgentId("")
+      setAssignOpen(false)
+    },
+    onError: (err) => {
+      toast({ title: "Failed to assign agent", description: err instanceof Error ? err.message : "Unknown", variant: "destructive" })
+    },
+  })
+
+  const unassignMutation = useMutation({
+    mutationFn: (agentId: string) => removeAgentFromNamespace(token, agentId, namespaceId),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["agents", namespaceId] })
+      queryClient.invalidateQueries({ queryKey: ["agents-all"] })
+      toast({ title: "Agent removed from namespace" })
+    },
+    onError: (err) => {
+      toast({ title: "Failed to remove agent", description: err instanceof Error ? err.message : "Unknown", variant: "destructive" })
+    },
+  })
+
   const deleteMutation = useMutation({
     mutationFn: (agentId: string) => deleteAgent(token, namespaceId, agentId),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["agents", namespaceId] })
+      queryClient.invalidateQueries({ queryKey: ["agents-all"] })
       toast({ title: "Agent deleted" })
     },
     onError: (err) => {
@@ -381,8 +424,19 @@ function AgentsTab({ namespaceId, token, userId }: { namespaceId: string; token:
             }
           />
           <ConfirmDialog
+            title="Remove from Namespace"
+            description={`Remove "${row.original.name}" from this namespace? The agent itself won't be deleted.`}
+            onConfirm={() => unassignMutation.mutateAsync(row.original.id)}
+            isLoading={unassignMutation.isPending}
+            trigger={
+              <Button variant="outline" size="sm">
+                <Unlink className="h-4 w-4" />
+              </Button>
+            }
+          />
+          <ConfirmDialog
             title="Delete Agent"
-            description={`Delete agent "${row.original.name}"? This cannot be undone.`}
+            description={`Permanently delete "${row.original.name}"? This removes it from ALL namespaces.`}
             onConfirm={() => deleteMutation.mutateAsync(row.original.id)}
             isLoading={deleteMutation.isPending}
             trigger={
@@ -398,9 +452,50 @@ function AgentsTab({ namespaceId, token, userId }: { namespaceId: string; token:
 
   return (
     <div className="space-y-6">
-      <div className="flex justify-end">
+      <div className="flex justify-end gap-2">
+        {/* Assign existing agent */}
+        <Dialog open={assignOpen} onOpenChange={(open) => { setAssignOpen(open); if (!open) setSelectedAgentId("") }}>
+          <DialogTrigger>
+            <Button variant="outline"><Link2 className="h-4 w-4 mr-2" />Assign Existing</Button>
+          </DialogTrigger>
+          <DialogContent>
+            <DialogHeader>
+              <DialogTitle>Assign Existing Agent</DialogTitle>
+            </DialogHeader>
+            <div className="space-y-4">
+              {assignableAgents.length === 0 ? (
+                <p className="text-sm text-muted-foreground">All your agents are already in this namespace.</p>
+              ) : (
+                <>
+                  <div className="space-y-2">
+                    <Label>Agent</Label>
+                    <Select value={selectedAgentId} onValueChange={(v) => setSelectedAgentId(v ?? "")}>
+                      <SelectTrigger><SelectValue placeholder="Select an agent..." /></SelectTrigger>
+                      <SelectContent>
+                        {assignableAgents.map((a) => (
+                          <SelectItem key={a.id} value={a.id}>
+                            {a.name}{a.description ? ` — ${a.description}` : ""}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+                  <Button
+                    className="w-full"
+                    disabled={!selectedAgentId || assignMutation.isPending}
+                    onClick={() => assignMutation.mutate(selectedAgentId)}
+                  >
+                    {assignMutation.isPending ? "Assigning..." : "Assign to Namespace"}
+                  </Button>
+                </>
+              )}
+            </div>
+          </DialogContent>
+        </Dialog>
+
+        {/* Create new agent */}
         <Dialog open={createOpen} onOpenChange={setCreateOpen}>
-          <DialogTrigger><Button><Plus className="h-4 w-4 mr-2" />Add Agent</Button></DialogTrigger>
+          <DialogTrigger><Button><Plus className="h-4 w-4 mr-2" />New Agent</Button></DialogTrigger>
           <DialogContent>
             <DialogHeader>
               <DialogTitle>Create Agent</DialogTitle>
