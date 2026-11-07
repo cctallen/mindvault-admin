@@ -16,6 +16,8 @@ import {
   getAgents,
   createAgent,
   deleteAgent,
+  addAgentToNamespace,
+  removeAgentFromNamespace,
   rotateAgentKey,
   getMembers,
   addMember,
@@ -351,10 +353,10 @@ function AgentsTab({ namespaceId, token, userId }: { namespaceId: string; token:
       ),
     },
     {
-      accessorKey: "id",
-      header: "Agent ID",
+      accessorKey: "namespaceIds",
+      header: "Namespaces",
       cell: ({ row }: { row: { original: Agent } }) => (
-        <span className="font-mono text-xs">{row.original.id}</span>
+        <span className="text-sm text-muted-foreground">{row.original.namespaceIds?.length ?? 0} namespace(s)</span>
       ),
     },
     {

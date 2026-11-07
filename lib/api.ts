@@ -188,6 +188,14 @@ export async function getAgents(
   })
 }
 
+export async function getAllAgents(
+  token: string
+): Promise<Agent[]> {
+  return apiFetch<Agent[]>(`/api/agents`, {
+    headers: authHeaders(token),
+  })
+}
+
 export async function createAgent(
   token: string,
   namespaceId: string,
@@ -196,16 +204,38 @@ export async function createAgent(
   return apiFetch<Agent>(`/api/namespaces/${namespaceId}/agents`, {
     method: "POST",
     headers: authHeaders(token),
-    body: JSON.stringify(data),
+    body: JSON.stringify({ name: data.name, description: data.description }),
+  })
+}
+
+export async function addAgentToNamespace(
+  token: string,
+  agentId: string,
+  namespaceId: string
+): Promise<Agent> {
+  return apiFetch<Agent>(`/api/agents/${agentId}/namespaces/${namespaceId}`, {
+    method: "POST",
+    headers: authHeaders(token),
+  })
+}
+
+export async function removeAgentFromNamespace(
+  token: string,
+  agentId: string,
+  namespaceId: string
+): Promise<void> {
+  return apiFetch<void>(`/api/agents/${agentId}/namespaces/${namespaceId}`, {
+    method: "DELETE",
+    headers: authHeaders(token),
   })
 }
 
 export async function deleteAgent(
   token: string,
-  namespaceId: string,
+  _namespaceId: string,
   agentId: string
 ): Promise<void> {
-  return apiFetch<void>(`/api/namespaces/${namespaceId}/agents/${agentId}`, {
+  return apiFetch<void>(`/api/agents/${agentId}`, {
     method: "DELETE",
     headers: authHeaders(token),
   })

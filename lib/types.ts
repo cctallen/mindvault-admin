@@ -23,10 +23,10 @@ export interface Namespace {
 
 export interface Agent {
   id: string
-  namespaceId: string
   name: string
   description: string
   apiKey?: string
+  namespaceIds: string[]
   createdAt: string
 }
 
