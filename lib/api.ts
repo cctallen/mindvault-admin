@@ -5,6 +5,8 @@ import type {
   Memory,
   Agent,
   Member,
+  Secret,
+  SecretReveal,
 } from "@/lib/types"
 
 // Server-side: hit the API directly (with self-signed cert bypass via proxy route)
@@ -306,4 +308,64 @@ export async function removeMember(
       headers: authHeaders(token),
     }
   )
+}
+
+// Secrets
+export async function getSecrets(
+  token: string,
+  namespaceId: string
+): Promise<Secret[]> {
+  return apiFetch<Secret[]>(`/api/namespaces/${namespaceId}/secrets`, {
+    headers: authHeaders(token),
+  })
+}
+
+export async function createSecret(
+  token: string,
+  namespaceId: string,
+  data: { name: string; value: string; description?: string }
+): Promise<Secret> {
+  return apiFetch<Secret>(`/api/namespaces/${namespaceId}/secrets`, {
+    method: "POST",
+    headers: authHeaders(token),
+    body: JSON.stringify(data),
+  })
+}
+
+export async function updateSecret(
+  token: string,
+  namespaceId: string,
+  secretId: string,
+  data: { name: string; value: string; description?: string }
+): Promise<Secret> {
+  return apiFetch<Secret>(`/api/namespaces/${namespaceId}/secrets/${secretId}`, {
+    method: "PUT",
+    headers: authHeaders(token),
+    body: JSON.stringify(data),
+  })
+}
+
+export async function revealSecret(
+  token: string,
+  namespaceId: string,
+  secretId: string
+): Promise<SecretReveal> {
+  return apiFetch<SecretReveal>(
+    `/api/namespaces/${namespaceId}/secrets/${secretId}/reveal`,
+    {
+      method: "POST",
+      headers: authHeaders(token),
+    }
+  )
+}
+
+export async function deleteSecret(
+  token: string,
+  namespaceId: string,
+  secretId: string
+): Promise<void> {
+  return apiFetch<void>(`/api/namespaces/${namespaceId}/secrets/${secretId}`, {
+    method: "DELETE",
+    headers: authHeaders(token),
+  })
 }

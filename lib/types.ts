@@ -1,3 +1,19 @@
+export interface Secret {
+  id: string
+  namespaceId: string
+  name: string
+  description?: string
+  createdAt: string
+  updatedAt?: string
+}
+
+export interface SecretReveal {
+  id: string
+  name: string
+  description?: string
+  value: string
+}
+
 export interface User {
   id: string
   email: string
