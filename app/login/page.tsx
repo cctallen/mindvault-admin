@@ -6,11 +6,11 @@ import { zodResolver } from "@hookform/resolvers/zod"
 import { z } from "zod"
 import { signIn } from "next-auth/react"
 import { useRouter } from "next/navigation"
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Button } from "@/components/ui/button"
 import Link from "next/link"
+import { Vault } from "lucide-react"
 
 const loginSchema = z.object({
   email: z.string().email("Invalid email address"),
@@ -47,51 +47,69 @@ export default function LoginPage() {
 
   return (
     <div className="min-h-screen flex items-center justify-center bg-background p-4">
-      <Card className="w-full max-w-md">
-        <CardHeader className="space-y-1">
-          <CardTitle className="text-2xl font-bold">MindVault</CardTitle>
-          <CardDescription>Sign in to your account</CardDescription>
-        </CardHeader>
-        <CardContent>
+      {/* Subtle background gradient */}
+      <div className="fixed inset-0 -z-10 bg-[radial-gradient(ellipse_80%_50%_at_50%_-20%,oklch(0.52_0.22_277/0.08),transparent)]" />
+
+      <div className="w-full max-w-sm space-y-8">
+        {/* Logo mark */}
+        <div className="flex flex-col items-center gap-3">
+          <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-primary/10 ring-1 ring-primary/20">
+            <Vault className="h-6 w-6 text-primary" />
+          </div>
+          <div className="text-center">
+            <h1 className="text-2xl font-bold tracking-tight">MindVault</h1>
+            <p className="text-sm text-muted-foreground mt-1">Sign in to your admin console</p>
+          </div>
+        </div>
+
+        {/* Form card */}
+        <div className="rounded-2xl border bg-card p-6 shadow-sm shadow-black/5 ring-1 ring-black/[0.04]">
           <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
-            <div className="space-y-2">
-              <Label htmlFor="email">Email</Label>
+            <div className="space-y-1.5">
+              <Label htmlFor="email" className="text-sm font-medium">Email</Label>
               <Input
                 id="email"
                 type="email"
                 placeholder="you@example.com"
+                className="h-10"
                 {...register("email")}
               />
               {errors.email && (
-                <p className="text-sm text-destructive">{errors.email.message}</p>
+                <p className="text-xs text-destructive">{errors.email.message}</p>
               )}
             </div>
-            <div className="space-y-2">
-              <Label htmlFor="password">Password</Label>
+            <div className="space-y-1.5">
+              <Label htmlFor="password" className="text-sm font-medium">Password</Label>
               <Input
                 id="password"
                 type="password"
+                className="h-10"
                 {...register("password")}
               />
               {errors.password && (
-                <p className="text-sm text-destructive">{errors.password.message}</p>
+                <p className="text-xs text-destructive">{errors.password.message}</p>
               )}
             </div>
+
             {error && (
-              <p className="text-sm text-destructive">{error}</p>
+              <div className="rounded-lg bg-destructive/10 border border-destructive/20 px-3 py-2">
+                <p className="text-sm text-destructive">{error}</p>
+              </div>
             )}
-            <Button type="submit" className="w-full" disabled={isSubmitting}>
-              {isSubmitting ? "Signing in..." : "Sign in"}
+
+            <Button type="submit" className="w-full h-10 font-semibold" disabled={isSubmitting}>
+              {isSubmitting ? "Signing in…" : "Sign in"}
             </Button>
           </form>
-          <p className="mt-4 text-center text-sm text-muted-foreground">
-            Don&apos;t have an account?{" "}
-            <Link href="/register" className="text-primary hover:underline">
-              Register
-            </Link>
-          </p>
-        </CardContent>
-      </Card>
+        </div>
+
+        <p className="text-center text-sm text-muted-foreground">
+          Don&apos;t have an account?{" "}
+          <Link href="/register" className="font-medium text-primary hover:underline">
+            Register
+          </Link>
+        </p>
+      </div>
     </div>
   )
 }
