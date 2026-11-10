@@ -24,8 +24,13 @@ import {
   addMember,
   updateMemberRole,
   removeMember,
+  getSecrets,
+  createSecret,
+  updateSecret,
+  revealSecret,
+  deleteSecret,
 } from "@/lib/api"
-import type { Memory, Agent, Member } from "@/lib/types"
+import type { Memory, Agent, Member, Secret } from "@/lib/types"
 import { MemoryType, MemoryVisibility, NamespaceRole, NAMESPACE_ROLE_LABELS } from "@/lib/types"
 import { DataTable } from "@/components/data-table"
 import { ConfirmDialog } from "@/components/confirm-dialog"
@@ -41,7 +46,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from 
 import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetTrigger } from "@/components/ui/sheet"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { Avatar, AvatarFallback } from "@/components/ui/avatar"
-import { Plus, Trash2, RefreshCw, ChevronLeft, ChevronRight, Link2, Unlink } from "lucide-react"
+import { Plus, Trash2, RefreshCw, ChevronLeft, ChevronRight, Link2, Unlink, Eye, EyeOff, Pencil, Copy, Check, KeyRound } from "lucide-react"
 import { useToast } from "@/hooks/use-toast"
 import { useDebounce } from "@/hooks/use-debounce"
 
@@ -541,6 +546,230 @@ function AgentsTab({ namespaceId, token, userId }: { namespaceId: string; token:
   )
 }
 
+// ——— SECRETS TAB ———
+
+function SecretsTab({ namespaceId, token }: { namespaceId: string; token: string }) {
+  const queryClient = useQueryClient()
+  const { toast } = useToast()
+  const [createOpen, setCreateOpen] = useState(false)
+  const [editSecret, setEditSecret] = useState<Secret | null>(null)
+  const [revealedSecrets, setRevealedSecrets] = useState<Record<string, string>>({})
+  const [copiedId, setCopiedId] = useState<string | null>(null)
+
+  const { data: secrets = [], isLoading } = useQuery({
+    queryKey: ["secrets", namespaceId],
+    queryFn: () => getSecrets(token, namespaceId),
+  })
+
+  const secretSchema = z.object({
+    name: z.string().min(1, "Name is required").max(200)
+      .regex(/^[a-zA-Z0-9_\-.]+$/, "Letters, numbers, underscores, hyphens, and dots only"),
+    value: z.string().min(1, "Value is required").max(10000),
+    description: z.string().max(500).optional(),
+  })
+  type SecretForm = z.infer<typeof secretSchema>
+
+  const { register, handleSubmit, reset, formState: { errors, isSubmitting } } =
+    useForm<SecretForm>({ resolver: zodResolver(secretSchema) })
+
+  const { register: editRegister, handleSubmit: handleEditSubmit, reset: editReset,
+    setValue: setEditValue, formState: { errors: editErrors, isSubmitting: editSubmitting } } =
+    useForm<SecretForm>({ resolver: zodResolver(secretSchema) })
+
+  const createMutation = useMutation({
+    mutationFn: (data: SecretForm) => createSecret(token, namespaceId, data),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["secrets", namespaceId] })
+      toast({ title: "Secret created" })
+      reset()
+      setCreateOpen(false)
+    },
+    onError: (err) => toast({ title: "Failed to create secret", description: err instanceof Error ? err.message : "Unknown", variant: "destructive" }),
+  })
+
+  const updateMutation = useMutation({
+    mutationFn: (data: SecretForm) => updateSecret(token, namespaceId, editSecret!.id, data),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["secrets", namespaceId] })
+      toast({ title: "Secret updated" })
+      editReset()
+      setEditSecret(null)
+    },
+    onError: (err) => toast({ title: "Failed to update secret", description: err instanceof Error ? err.message : "Unknown", variant: "destructive" }),
+  })
+
+  const revealMutation = useMutation({
+    mutationFn: (secretId: string) => revealSecret(token, namespaceId, secretId),
+    onSuccess: (data) => setRevealedSecrets((prev) => ({ ...prev, [data.id]: data.value })),
+    onError: (err) => toast({ title: "Failed to reveal secret", description: err instanceof Error ? err.message : "Unknown", variant: "destructive" }),
+  })
+
+  const deleteMutation = useMutation({
+    mutationFn: (secretId: string) => deleteSecret(token, namespaceId, secretId),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["secrets", namespaceId] })
+      toast({ title: "Secret deleted" })
+    },
+    onError: (err) => toast({ title: "Failed to delete secret", description: err instanceof Error ? err.message : "Unknown", variant: "destructive" }),
+  })
+
+  const handleCopy = async (secretId: string, value: string) => {
+    await navigator.clipboard.writeText(value)
+    setCopiedId(secretId)
+    setTimeout(() => setCopiedId(null), 2000)
+  }
+
+  const openEdit = (secret: Secret) => {
+    setEditSecret(secret)
+    setEditValue("name", secret.name)
+    setEditValue("description", secret.description ?? "")
+    setEditValue("value", "")
+  }
+
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const columns: any[] = [
+    {
+      accessorKey: "name",
+      header: "Name",
+      cell: ({ row }: { row: { original: Secret } }) => (
+        <span className="font-mono text-sm font-medium">{row.original.name}</span>
+      ),
+    },
+    {
+      accessorKey: "description",
+      header: "Description",
+      cell: ({ row }: { row: { original: Secret } }) => (
+        <span className="text-sm text-muted-foreground">{row.original.description || "—"}</span>
+      ),
+    },
+    {
+      id: "value",
+      header: "Value",
+      cell: ({ row }: { row: { original: Secret } }) => {
+        const revealed = revealedSecrets[row.original.id]
+        return (
+          <div className="flex items-center gap-2 max-w-xs">
+            {revealed ? (
+              <>
+                <span className="font-mono text-xs bg-muted px-2 py-1 rounded truncate max-w-[200px]">{revealed}</span>
+                <Button variant="ghost" size="icon" className="h-7 w-7 shrink-0" onClick={() => handleCopy(row.original.id, revealed)}>
+                  {copiedId === row.original.id ? <Check className="h-3.5 w-3.5 text-green-500" /> : <Copy className="h-3.5 w-3.5" />}
+                </Button>
+                <Button variant="ghost" size="icon" className="h-7 w-7 shrink-0" onClick={() => setRevealedSecrets((prev) => { const next = { ...prev }; delete next[row.original.id]; return next })}>
+                  <EyeOff className="h-3.5 w-3.5" />
+                </Button>
+              </>
+            ) : (
+              <>
+                <span className="text-muted-foreground text-xs font-mono">••••••••</span>
+                <Button variant="ghost" size="icon" className="h-7 w-7 shrink-0" onClick={() => revealMutation.mutate(row.original.id)} disabled={revealMutation.isPending}>
+                  <Eye className="h-3.5 w-3.5" />
+                </Button>
+              </>
+            )}
+          </div>
+        )
+      },
+    },
+    {
+      accessorKey: "createdAt",
+      header: "Created",
+      cell: ({ row }: { row: { original: Secret } }) => new Date(row.original.createdAt).toLocaleDateString(),
+    },
+    {
+      id: "actions",
+      cell: ({ row }: { row: { original: Secret } }) => (
+        <div className="flex items-center gap-2">
+          <Button variant="outline" size="sm" onClick={() => openEdit(row.original)}>
+            <Pencil className="h-4 w-4" />
+          </Button>
+          <ConfirmDialog
+            title="Delete Secret"
+            description={`Delete "${row.original.name}"? This cannot be undone.`}
+            onConfirm={() => deleteMutation.mutateAsync(row.original.id)}
+            isLoading={deleteMutation.isPending}
+            trigger={
+              <Button variant="destructive" size="sm"><Trash2 className="h-4 w-4" /></Button>
+            }
+          />
+        </div>
+      ),
+    },
+  ]
+
+  return (
+    <div className="space-y-4">
+      <div className="flex justify-end">
+        <Button onClick={() => setCreateOpen(true)}>
+          <Plus className="h-4 w-4 mr-2" />New Secret
+        </Button>
+      </div>
+
+      <DataTable columns={columns} data={secrets} isLoading={isLoading} />
+
+      {/* Create dialog */}
+      <Dialog open={createOpen} onOpenChange={setCreateOpen}>
+        <DialogContent>
+          <DialogHeader><DialogTitle>New Secret</DialogTitle></DialogHeader>
+          <form onSubmit={handleSubmit((data) => createMutation.mutate(data))} className="space-y-4">
+            <div className="space-y-2">
+              <Label>Name</Label>
+              <Input placeholder="DATABASE_URL" className="font-mono" {...register("name")} />
+              {errors.name && <p className="text-sm text-destructive">{errors.name.message}</p>}
+              <p className="text-xs text-muted-foreground">Letters, numbers, underscores, hyphens, and dots only</p>
+            </div>
+            <div className="space-y-2">
+              <Label>Value</Label>
+              <Input type="password" placeholder="Enter secret value" {...register("value")} />
+              {errors.value && <p className="text-sm text-destructive">{errors.value.message}</p>}
+              <p className="text-xs text-muted-foreground">Stored encrypted with AES-256-GCM</p>
+            </div>
+            <div className="space-y-2">
+              <Label>Description <span className="text-muted-foreground">(optional)</span></Label>
+              <Textarea rows={2} {...register("description")} />
+            </div>
+            <div className="flex gap-2 pt-1">
+              <Button type="button" variant="outline" className="flex-1" onClick={() => { reset(); setCreateOpen(false) }}>Cancel</Button>
+              <Button type="submit" className="flex-1" disabled={isSubmitting || createMutation.isPending}>
+                {createMutation.isPending ? "Creating…" : "Create Secret"}
+              </Button>
+            </div>
+          </form>
+        </DialogContent>
+      </Dialog>
+
+      {/* Edit dialog */}
+      <Dialog open={!!editSecret} onOpenChange={(open) => { if (!open) { setEditSecret(null); editReset() } }}>
+        <DialogContent>
+          <DialogHeader><DialogTitle>Update Secret</DialogTitle></DialogHeader>
+          <form onSubmit={handleEditSubmit((data) => updateMutation.mutate(data))} className="space-y-4">
+            <div className="space-y-2">
+              <Label>Name</Label>
+              <Input className="font-mono" {...editRegister("name")} />
+              {editErrors.name && <p className="text-sm text-destructive">{editErrors.name.message}</p>}
+            </div>
+            <div className="space-y-2">
+              <Label>New Value</Label>
+              <Input type="password" placeholder="Enter new value to rotate" {...editRegister("value")} />
+              {editErrors.value && <p className="text-sm text-destructive">{editErrors.value.message}</p>}
+            </div>
+            <div className="space-y-2">
+              <Label>Description <span className="text-muted-foreground">(optional)</span></Label>
+              <Textarea rows={2} {...editRegister("description")} />
+            </div>
+            <div className="flex gap-2 pt-1">
+              <Button type="button" variant="outline" className="flex-1" onClick={() => { setEditSecret(null); editReset() }}>Cancel</Button>
+              <Button type="submit" className="flex-1" disabled={editSubmitting || updateMutation.isPending}>
+                {updateMutation.isPending ? "Updating…" : "Update Secret"}
+              </Button>
+            </div>
+          </form>
+        </DialogContent>
+      </Dialog>
+    </div>
+  )
+}
+
 // ——— MEMBERS TAB ———
 
 function MembersTab({ namespaceId, token }: { namespaceId: string; token: string }) {
@@ -733,6 +962,7 @@ export default function NamespaceDetailPage({ params }: { params: Promise<{ slug
         <TabsList>
           <TabsTrigger value="memories">Memories</TabsTrigger>
           <TabsTrigger value="agents">Agents</TabsTrigger>
+          <TabsTrigger value="secrets">Secrets</TabsTrigger>
           <TabsTrigger value="members">Members</TabsTrigger>
         </TabsList>
         <TabsContent value="memories" className="mt-6">
@@ -740,6 +970,9 @@ export default function NamespaceDetailPage({ params }: { params: Promise<{ slug
         </TabsContent>
         <TabsContent value="agents" className="mt-6">
           <AgentsTab namespaceId={namespace.id} token={token} userId={userId} />
+        </TabsContent>
+        <TabsContent value="secrets" className="mt-6">
+          <SecretsTab namespaceId={namespace.id} token={token} />
         </TabsContent>
         <TabsContent value="members" className="mt-6">
           <MembersTab namespaceId={namespace.id} token={token} />
