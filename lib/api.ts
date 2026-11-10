@@ -245,11 +245,11 @@ export async function deleteAgent(
 
 export async function rotateAgentKey(
   token: string,
-  namespaceId: string,
+  _namespaceId: string,
   agentId: string
 ): Promise<{ apiKey: string }> {
   return apiFetch<{ apiKey: string }>(
-    `/api/namespaces/${namespaceId}/agents/${agentId}/rotate-key`,
+    `/api/agents/${agentId}/rotate-key`,
     {
       method: "POST",
       headers: authHeaders(token),
