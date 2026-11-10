@@ -179,6 +179,7 @@ function MemoriesTab({ namespaceId, token }: { namespaceId: string; token: strin
   const visibilityVal = watch("visibility")
 
   return (
+    <>
     <div className="space-y-4">
       <div className="flex items-center gap-3 flex-wrap">
         <Input
@@ -338,6 +339,7 @@ function MemoriesTab({ namespaceId, token }: { namespaceId: string; token: strin
           )}
         </SheetContent>
       </Sheet>
+    </>
   )
 }
 
