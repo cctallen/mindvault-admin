@@ -136,6 +136,16 @@ export async function getMemories(
   )
 }
 
+export async function getMemoryById(
+  token: string,
+  namespaceId: string,
+  memoryId: string
+): Promise<Memory> {
+  return apiFetch<Memory>(`/api/namespaces/${namespaceId}/memories/${memoryId}`, {
+    headers: authHeaders(token),
+  })
+}
+
 export async function searchMemories(
   token: string,
   namespaceId: string,

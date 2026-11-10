@@ -10,6 +10,7 @@ import { use } from "react"
 import {
   getNamespaceBySlug,
   getMemories,
+  getMemoryById,
   searchMemories,
   createMemory,
   deleteMemory,
@@ -61,6 +62,7 @@ function MemoriesTab({ namespaceId, token }: { namespaceId: string; token: strin
   const [page, setPage] = useState(1)
   const [typeFilter, setTypeFilter] = useState<string>("all")
   const [addOpen, setAddOpen] = useState(false)
+  const [selectedMemory, setSelectedMemory] = useState<Memory | null>(null)
 
   const { data: pagedData, isLoading: loadingPaged } = useQuery({
     queryKey: ["memories", namespaceId, page],
@@ -153,17 +155,22 @@ function MemoriesTab({ namespaceId, token }: { namespaceId: string; token: strin
     {
       id: "actions",
       cell: ({ row }: { row: { original: Memory } }) => (
-        <ConfirmDialog
-          title="Delete Memory"
-          description="Are you sure you want to delete this memory?"
-          onConfirm={() => deleteMutation.mutateAsync(row.original.id)}
-          isLoading={deleteMutation.isPending}
-          trigger={
-            <Button variant="destructive" size="sm">
-              <Trash2 className="h-4 w-4" />
-            </Button>
-          }
-        />
+        <div className="flex items-center gap-2">
+          <Button variant="outline" size="sm" onClick={() => setSelectedMemory(row.original)}>
+            <Eye className="h-4 w-4" />
+          </Button>
+          <ConfirmDialog
+            title="Delete Memory"
+            description="Are you sure you want to delete this memory?"
+            onConfirm={() => deleteMutation.mutateAsync(row.original.id)}
+            isLoading={deleteMutation.isPending}
+            trigger={
+              <Button variant="destructive" size="sm">
+                <Trash2 className="h-4 w-4" />
+              </Button>
+            }
+          />
+        </div>
       ),
     },
   ]
@@ -269,6 +276,68 @@ function MemoriesTab({ namespaceId, token }: { namespaceId: string; token: strin
         </div>
       )}
     </div>
+
+      {/* Memory detail sheet */}
+      <Sheet open={!!selectedMemory} onOpenChange={(open) => { if (!open) setSelectedMemory(null) }}>
+        <SheetContent className="w-full sm:max-w-lg overflow-y-auto">
+          <SheetHeader>
+            <SheetTitle>Memory Detail</SheetTitle>
+          </SheetHeader>
+          {selectedMemory && (
+            <div className="mt-6 space-y-5">
+              <div className="flex gap-2">
+                <MemoryTypeBadge type={selectedMemory.type} />
+                <VisibilityBadge visibility={selectedMemory.visibility} />
+              </div>
+              <div className="space-y-1">
+                <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">Content</p>
+                <p className="text-sm whitespace-pre-wrap rounded-lg bg-muted px-3 py-3 leading-relaxed">{selectedMemory.content}</p>
+              </div>
+              {selectedMemory.source && (
+                <div className="space-y-1">
+                  <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">Source</p>
+                  <p className="text-sm font-mono">{selectedMemory.source}</p>
+                </div>
+              )}
+              {selectedMemory.agentId && (
+                <div className="space-y-1">
+                  <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">Agent ID</p>
+                  <p className="text-sm font-mono text-muted-foreground">{selectedMemory.agentId}</p>
+                </div>
+              )}
+              {selectedMemory.metadata && Object.keys(selectedMemory.metadata).length > 0 && (
+                <div className="space-y-1">
+                  <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">Metadata</p>
+                  <div className="rounded-lg bg-muted px-3 py-3 space-y-1">
+                    {Object.entries(selectedMemory.metadata).map(([k, v]) => (
+                      <div key={k} className="flex gap-2 text-sm">
+                        <span className="font-mono text-muted-foreground shrink-0">{k}:</span>
+                        <span className="font-mono break-all">{v}</span>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+              <div className="grid grid-cols-2 gap-4 pt-2 border-t">
+                <div className="space-y-1">
+                  <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">Created</p>
+                  <p className="text-sm">{new Date(selectedMemory.createdAt).toLocaleString()}</p>
+                </div>
+                {selectedMemory.expiresAt && (
+                  <div className="space-y-1">
+                    <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">Expires</p>
+                    <p className="text-sm">{new Date(selectedMemory.expiresAt).toLocaleString()}</p>
+                  </div>
+                )}
+              </div>
+              <div className="space-y-1">
+                <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">ID</p>
+                <p className="text-xs font-mono text-muted-foreground break-all">{selectedMemory.id}</p>
+              </div>
+            </div>
+          )}
+        </SheetContent>
+      </Sheet>
   )
 }
 
