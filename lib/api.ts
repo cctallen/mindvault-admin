@@ -94,6 +94,18 @@ export async function createNamespace(
   })
 }
 
+export async function updateNamespace(
+  token: string,
+  id: string,
+  data: { displayName: string; description: string; isPublic: boolean }
+): Promise<Namespace> {
+  return apiFetch<Namespace>(`/api/namespaces/${id}`, {
+    method: "PUT",
+    headers: authHeaders(token),
+    body: JSON.stringify(data),
+  })
+}
+
 export async function deleteNamespace(
   token: string,
   id: string

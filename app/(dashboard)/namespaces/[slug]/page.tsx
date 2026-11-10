@@ -31,6 +31,7 @@ import {
   updateSecret,
   revealSecret,
   deleteSecret,
+  updateNamespace,
 } from "@/lib/api"
 import type { Memory, Agent, Member, Secret } from "@/lib/types"
 import { MemoryType, MemoryVisibility, NamespaceRole, NAMESPACE_ROLE_LABELS } from "@/lib/types"
@@ -48,7 +49,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from 
 import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetTrigger } from "@/components/ui/sheet"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { Avatar, AvatarFallback } from "@/components/ui/avatar"
-import { Plus, Trash2, RefreshCw, ChevronLeft, ChevronRight, Link2, Unlink, Eye, EyeOff, Pencil, Copy, Check, KeyRound } from "lucide-react"
+import { Plus, Trash2, RefreshCw, ChevronLeft, ChevronRight, Link2, Unlink, Eye, EyeOff, Pencil, Copy, Check, KeyRound, Settings } from "lucide-react"
 import { useToast } from "@/hooks/use-toast"
 import { useDebounce } from "@/hooks/use-debounce"
 
@@ -1001,6 +1002,8 @@ function MembersTab({ namespaceId, token }: { namespaceId: string; token: string
 export default function NamespaceDetailPage({ params }: { params: Promise<{ slug: string }> }) {
   const { slug } = use(params)
   const { data: session } = useSession()
+  const queryClient = useQueryClient()
+  const { toast } = useToast()
 
   const { data: namespace, isLoading } = useQuery({
     queryKey: ["namespace", slug],
@@ -1018,21 +1021,93 @@ export default function NamespaceDetailPage({ params }: { params: Promise<{ slug
 
   const token = session!.accessToken
   const userId = session?.userId ?? ""
+  const [editOpen, setEditOpen] = useState(false)
+
+  const editSchema = z.object({
+    displayName: z.string().min(1, "Display name is required").max(100),
+    description: z.string().max(500).optional(),
+    isPublic: z.boolean(),
+  })
+  type EditForm = z.infer<typeof editSchema>
+
+  const { register: editReg, handleSubmit: handleEditSubmit, reset: editReset,
+    setValue: setEditVal, watch: editWatch,
+    formState: { errors: editErr, isSubmitting: editSubmitting } } =
+    useForm<EditForm>({ resolver: zodResolver(editSchema) })
+
+  const updateMutation = useMutation({
+    mutationFn: (data: EditForm) => updateNamespace(token, namespace.id, {
+      displayName: data.displayName,
+      description: data.description ?? "",
+      isPublic: data.isPublic,
+    }),
+    onSuccess: (updated) => {
+      queryClient.invalidateQueries({ queryKey: ["namespace", slug] })
+      toast({ title: "Namespace updated" })
+      setEditOpen(false)
+    },
+    onError: (err) => toast({ title: "Failed to update", description: err instanceof Error ? err.message : "Unknown", variant: "destructive" }),
+  })
+
+  const openEdit = () => {
+    setEditVal("displayName", namespace.displayName)
+    setEditVal("description", namespace.description ?? "")
+    setEditVal("isPublic", namespace.isPublic)
+    setEditOpen(true)
+  }
 
   return (
     <div className="space-y-6">
       <div>
-        <div className="flex items-center gap-3">
-          <h1 className="text-3xl font-bold">{namespace.displayName}</h1>
-          <Badge variant={namespace.isPublic ? "default" : "secondary"}>
-            {namespace.isPublic ? "Public" : "Private"}
-          </Badge>
+        <div className="flex items-center justify-between">
+          <div className="flex items-center gap-3">
+            <h1 className="text-3xl font-bold">{namespace.displayName}</h1>
+            <Badge variant={namespace.isPublic ? "default" : "secondary"}>
+              {namespace.isPublic ? "Public" : "Private"}
+            </Badge>
+          </div>
+          <Button variant="outline" size="sm" onClick={openEdit}>
+            <Settings className="h-4 w-4 mr-2" />Edit
+          </Button>
         </div>
         <p className="text-muted-foreground font-mono text-sm mt-1">{namespace.slug}</p>
         {namespace.description && (
           <p className="text-muted-foreground mt-2">{namespace.description}</p>
         )}
       </div>
+
+      {/* Edit namespace dialog */}
+      <Dialog open={editOpen} onOpenChange={setEditOpen}>
+        <DialogContent>
+          <DialogHeader><DialogTitle>Edit Namespace</DialogTitle></DialogHeader>
+          <form onSubmit={handleEditSubmit((d) => updateMutation.mutate(d))} className="space-y-4">
+            <div className="space-y-2">
+              <Label>Display Name</Label>
+              <Input {...editReg("displayName")} />
+              {editErr.displayName && <p className="text-sm text-destructive">{editErr.displayName.message}</p>}
+            </div>
+            <div className="space-y-2">
+              <Label>Description <span className="text-muted-foreground">(optional)</span></Label>
+              <Textarea rows={3} {...editReg("description")} />
+            </div>
+            <div className="flex items-center gap-3">
+              <input
+                type="checkbox"
+                id="isPublic"
+                className="h-4 w-4"
+                {...editReg("isPublic")}
+              />
+              <Label htmlFor="isPublic">Public namespace</Label>
+            </div>
+            <div className="flex gap-2 pt-1">
+              <Button type="button" variant="outline" className="flex-1" onClick={() => setEditOpen(false)}>Cancel</Button>
+              <Button type="submit" className="flex-1" disabled={editSubmitting || updateMutation.isPending}>
+                {updateMutation.isPending ? "Saving…" : "Save Changes"}
+              </Button>
+            </div>
+          </form>
+        </DialogContent>
+      </Dialog>
 
       <Tabs defaultValue="memories">
         <TabsList>
