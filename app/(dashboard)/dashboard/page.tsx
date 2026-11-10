@@ -1,17 +1,30 @@
 export const dynamic = 'force-dynamic'
 
 import { auth } from "@/auth"
-import { getNamespaces } from "@/lib/api"
+import { getNamespaces, getAllAgents, getSecrets } from "@/lib/api"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
-import { Database, Bot, ArrowRight } from "lucide-react"
+import { Database, Bot, ArrowRight, KeyRound } from "lucide-react"
 import Link from "next/link"
 
 export default async function DashboardPage() {
   const session = await auth()
-  const result = await getNamespaces(session!.accessToken, 1, 6).catch(() => null)
+  const token = session!.accessToken
+
+  const [result, agents] = await Promise.all([
+    getNamespaces(token, 1, 100).catch(() => null),
+    getAllAgents(token).catch(() => [] as Awaited<ReturnType<typeof getAllAgents>>),
+  ])
+
   const namespaces = result?.items ?? []
-  const totalCount = result?.total ?? result?.totalCount ?? 0
+  const totalNamespaces = result?.total ?? result?.totalCount ?? 0
+  const totalAgents = agents.length
+
+  // Fetch secret counts across all namespaces in parallel
+  const secretCounts = await Promise.all(
+    namespaces.map((ns) => getSecrets(token, ns.id).catch(() => []))
+  )
+  const totalSecrets = secretCounts.reduce((sum, s) => sum + s.length, 0)
 
   const firstName = session?.user?.email?.split("@")[0] ?? "there"
 
@@ -35,7 +48,7 @@ export default async function DashboardPage() {
             </div>
           </CardHeader>
           <CardContent>
-            <div className="text-3xl font-bold">{totalCount}</div>
+            <div className="text-3xl font-bold">{totalNamespaces}</div>
             <Link href="/namespaces" className="text-xs text-primary hover:underline mt-1 inline-flex items-center gap-1">
               View all <ArrowRight className="h-3 w-3" />
             </Link>
@@ -50,9 +63,24 @@ export default async function DashboardPage() {
             </div>
           </CardHeader>
           <CardContent>
-            <div className="text-3xl font-bold">—</div>
+            <div className="text-3xl font-bold">{totalAgents}</div>
             <Link href="/agents" className="text-xs text-primary hover:underline mt-1 inline-flex items-center gap-1">
               Manage agents <ArrowRight className="h-3 w-3" />
+            </Link>
+          </CardContent>
+        </Card>
+
+        <Card className="card-elevated">
+          <CardHeader className="flex flex-row items-center justify-between pb-2">
+            <CardTitle className="text-sm font-medium text-muted-foreground">Secrets</CardTitle>
+            <div className="h-8 w-8 rounded-lg bg-primary/10 flex items-center justify-center">
+              <KeyRound className="h-4 w-4 text-primary" />
+            </div>
+          </CardHeader>
+          <CardContent>
+            <div className="text-3xl font-bold">{totalSecrets}</div>
+            <Link href="/secrets" className="text-xs text-primary hover:underline mt-1 inline-flex items-center gap-1">
+              Manage secrets <ArrowRight className="h-3 w-3" />
             </Link>
           </CardContent>
         </Card>
@@ -77,7 +105,7 @@ export default async function DashboardPage() {
           </div>
         ) : (
           <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
-            {namespaces.map((ns) => (
+            {namespaces.slice(0, 6).map((ns) => (
               <Link key={ns.id} href={`/namespaces/${ns.slug}`}>
                 <Card className="card-elevated hover:border-primary/40 hover:shadow-md transition-all duration-200 cursor-pointer group">
                   <CardHeader className="pb-2">
