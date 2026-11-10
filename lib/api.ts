@@ -257,6 +257,17 @@ export async function rotateAgentKey(
   )
 }
 
+// Users
+export async function lookupUserByEmail(
+  token: string,
+  email: string
+): Promise<{ id: string; email: string; fullName: string }> {
+  return apiFetch<{ id: string; email: string; fullName: string }>(
+    `/api/users/lookup?email=${encodeURIComponent(email)}`,
+    { headers: authHeaders(token) }
+  )
+}
+
 // Members
 export async function getMembers(
   token: string,

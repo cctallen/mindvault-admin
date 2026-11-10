@@ -22,6 +22,7 @@ import {
   rotateAgentKey,
   getMembers,
   addMember,
+  lookupUserByEmail,
   updateMemberRole,
   removeMember,
   getSecrets,
@@ -783,7 +784,7 @@ function MembersTab({ namespaceId, token }: { namespaceId: string; token: string
   })
 
   const addSchema = z.object({
-    userId: z.string().uuid("Must be a valid user UUID"),
+    userId: z.string().email("Must be a valid email address"),
     role: z.string(),
   })
   type AddForm = z.infer<typeof addSchema>
@@ -795,7 +796,11 @@ function MembersTab({ namespaceId, token }: { namespaceId: string; token: string
   const roleVal = watch("role")
 
   const addMutation = useMutation({
-    mutationFn: (data: AddForm) => addMember(token, namespaceId, data.userId, Number(data.role)),
+    mutationFn: async (data: AddForm) => {
+      // Resolve email → user ID first
+      const user = await lookupUserByEmail(token, data.userId)
+      return addMember(token, namespaceId, user.id, Number(data.role))
+    },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["members", namespaceId] })
       toast({ title: "Member added" })
@@ -893,8 +898,8 @@ function MembersTab({ namespaceId, token }: { namespaceId: string; token: string
             </DialogHeader>
             <form onSubmit={handleSubmit((d) => addMutation.mutate(d))} className="space-y-4">
               <div className="space-y-2">
-                <Label>User ID</Label>
-                <Input placeholder="user-uuid" {...register("userId")} />
+                <Label>Email Address</Label>
+                <Input placeholder="user@example.com" type="email" {...register("userId")} />
                 {errors.userId && <p className="text-sm text-destructive">{errors.userId.message}</p>}
               </div>
               <div className="space-y-2">
