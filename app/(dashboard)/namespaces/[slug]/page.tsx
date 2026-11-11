@@ -218,7 +218,7 @@ function MemoriesTab({ namespaceId, token }: { namespaceId: string; token: strin
               <div className="space-y-2">
                 <Label>Type</Label>
                 <Select value={typeVal} onValueChange={(v) => setValue("type", v ?? "0")}>
-                  <SelectTrigger><SelectValue /></SelectTrigger>
+                  <SelectTrigger><SelectValue>{(v: string) => ({"0":"Fact","1":"Preference","2":"Event","3":"Context","4":"Instruction","5":"Summary"})[v] ?? "Select type"}</SelectValue></SelectTrigger>
                   <SelectContent>
                     <SelectItem value="0">Fact</SelectItem>
                     <SelectItem value="1">Preference</SelectItem>
@@ -232,7 +232,7 @@ function MemoriesTab({ namespaceId, token }: { namespaceId: string; token: strin
               <div className="space-y-2">
                 <Label>Visibility</Label>
                 <Select value={visibilityVal} onValueChange={(v) => setValue("visibility", v ?? "0")}>
-                  <SelectTrigger><SelectValue /></SelectTrigger>
+                  <SelectTrigger><SelectValue>{(v: string) => ({"0":"Public","1":"Private"})[v] ?? "Select visibility"}</SelectValue></SelectTrigger>
                   <SelectContent>
                     <SelectItem value="0">Public</SelectItem>
                     <SelectItem value="1">Private</SelectItem>
@@ -935,7 +935,7 @@ function MembersTab({ namespaceId, token }: { namespaceId: string; token: string
             onValueChange={(v) => updateRoleMutation.mutate({ memberId: row.original.userId, role: Number(v ?? "1") })}
           >
             <SelectTrigger className="w-28 h-8">
-              <SelectValue />
+              <SelectValue>{(v: string) => ({"1":"Reader","2":"Writer","3":"Admin"})[v] ?? "Select role"}</SelectValue>
             </SelectTrigger>
             <SelectContent>
               <SelectItem value="1">Reader</SelectItem>
@@ -977,7 +977,7 @@ function MembersTab({ namespaceId, token }: { namespaceId: string; token: string
               <div className="space-y-2">
                 <Label>Role</Label>
                 <Select value={roleVal} onValueChange={(v) => setValue("role", v ?? "1")}>
-                  <SelectTrigger><SelectValue /></SelectTrigger>
+                  <SelectTrigger><SelectValue>{(v: string) => ({"1":"Reader","2":"Writer","3":"Admin"})[v] ?? "Select role"}</SelectValue></SelectTrigger>
                   <SelectContent>
                     <SelectItem value="1">Reader</SelectItem>
                     <SelectItem value="2">Writer</SelectItem>
