@@ -118,7 +118,7 @@ export default function AgentsPage() {
       queryClient.invalidateQueries({ queryKey: ["namespaces"] })
       setCreateOpen(false)
       reset()
-      setNewAgentKey({ name: agent.name, apiKey: agent.apiKey, namespaceSlug: ns.slug })
+      setNewAgentKey({ name: agent.name, apiKey: agent.apiKey ?? "", namespaceSlug: ns.slug })
       toast({ title: "Agent created" })
     },
     onError: (err) => {
