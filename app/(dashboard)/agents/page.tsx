@@ -6,17 +6,20 @@ import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query"
 import { useForm } from "react-hook-form"
 import { zodResolver } from "@hookform/resolvers/zod"
 import { z } from "zod"
-import { getAllAgents, getNamespaces, addAgentToNamespace, removeAgentFromNamespace, deleteAgent } from "@/lib/api"
+import { getAllAgents, getNamespaces, createAgent, createNamespace, addAgentToNamespace, removeAgentFromNamespace, deleteAgent } from "@/lib/api"
 import type { Agent, Namespace } from "@/lib/types"
 import { DataTable } from "@/components/data-table"
 import { ConfirmDialog } from "@/components/confirm-dialog"
 import { CopyInput } from "@/components/copy-input"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
+import { Input } from "@/components/ui/input"
+import { Textarea } from "@/components/ui/textarea"
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog"
+import { Sheet, SheetContent, SheetHeader, SheetTitle } from "@/components/ui/sheet"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Label } from "@/components/ui/label"
-import { Trash2, Plus, Link, Unlink } from "lucide-react"
+import { Trash2, Plus, Link, Unlink, KeyRound } from "lucide-react"
 import { useToast } from "@/hooks/use-toast"
 
 export default function AgentsPage() {
@@ -25,8 +28,20 @@ export default function AgentsPage() {
   const { toast } = useToast()
   const [assignAgent, setAssignAgent] = useState<Agent | null>(null)
   const [selectedNs, setSelectedNs] = useState("")
+  const [createOpen, setCreateOpen] = useState(false)
+  const [newAgentKey, setNewAgentKey] = useState<{ name: string; apiKey: string; namespaceSlug: string } | null>(null)
 
   const token = session?.accessToken ?? ""
+
+  const createSchema = z.object({
+    name: z.string().min(1, "Name is required").max(100),
+    description: z.string().max(500).optional(),
+  })
+  type CreateForm = z.infer<typeof createSchema>
+
+  const { register, handleSubmit, reset, formState: { errors, isSubmitting } } = useForm<CreateForm>({
+    resolver: zodResolver(createSchema),
+  })
 
   const { data: agents = [], isLoading } = useQuery({
     queryKey: ["agents-all"],
@@ -75,6 +90,39 @@ export default function AgentsPage() {
     },
     onError: (err) => {
       toast({ title: "Failed to delete", description: err instanceof Error ? err.message : "Unknown", variant: "destructive" })
+    },
+  })
+
+  const createMutation = useMutation({
+    mutationFn: async (data: CreateForm) => {
+      // 1. Create a private namespace for this agent (slug: agent-<slugified-name>)
+      const slug = "agent-" + data.name.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "")
+      const ns = await createNamespace(token, {
+        slug,
+        displayName: data.name,
+        description: `${data.name} private agent memory namespace`,
+        isPublic: false,
+        ownerId: session?.userId ?? "",
+      })
+      // 2. Create the agent scoped to that namespace
+      const agent = await createAgent(token, ns.id, {
+        namespaceId: ns.id,
+        name: data.name,
+        description: data.description ?? "",
+        requesterId: "",
+      })
+      return { agent, ns }
+    },
+    onSuccess: ({ agent, ns }) => {
+      queryClient.invalidateQueries({ queryKey: ["agents-all"] })
+      queryClient.invalidateQueries({ queryKey: ["namespaces"] })
+      setCreateOpen(false)
+      reset()
+      setNewAgentKey({ name: agent.name, apiKey: agent.apiKey, namespaceSlug: ns.slug })
+      toast({ title: "Agent created" })
+    },
+    onError: (err) => {
+      toast({ title: "Failed to create agent", description: err instanceof Error ? err.message : "Unknown", variant: "destructive" })
     },
   })
 
@@ -162,10 +210,73 @@ export default function AgentsPage() {
 
   return (
     <div className="space-y-6">
-      <h1 className="text-3xl font-bold">Agents</h1>
-      <p className="text-muted-foreground">All agents across your namespaces. Use Assign to add an agent to additional namespaces.</p>
+      <div className="flex items-center justify-between">
+        <div>
+          <h1 className="text-3xl font-bold">Agents</h1>
+          <p className="text-muted-foreground mt-1">All agents across your namespaces. Use Assign to add an agent to additional namespaces.</p>
+        </div>
+        <Button onClick={() => setCreateOpen(true)}>
+          <Plus className="h-4 w-4 mr-2" />Create Agent
+        </Button>
+      </div>
 
       <DataTable columns={columns} data={agents} isLoading={isLoading} />
+
+      {/* Create agent sheet */}
+      <Sheet open={createOpen} onOpenChange={(open) => { setCreateOpen(open); if (!open) reset() }}>
+        <SheetContent>
+          <SheetHeader>
+            <SheetTitle>Create Agent</SheetTitle>
+          </SheetHeader>
+          <p className="text-sm text-muted-foreground mt-2 mb-6">
+            A private namespace will be automatically created and associated with the new agent.
+          </p>
+          <form onSubmit={handleSubmit((d) => createMutation.mutate(d))} className="space-y-4">
+            <div className="space-y-2">
+              <Label>Name</Label>
+              <Input placeholder="e.g. my-agent" {...register("name")} />
+              {errors.name && <p className="text-sm text-destructive">{errors.name.message}</p>}
+            </div>
+            <div className="space-y-2">
+              <Label>Description <span className="text-muted-foreground">(optional)</span></Label>
+              <Textarea rows={3} placeholder="What does this agent do?" {...register("description")} />
+            </div>
+            <Button type="submit" className="w-full" disabled={isSubmitting || createMutation.isPending}>
+              {createMutation.isPending ? "Creating..." : "Create Agent"}
+            </Button>
+          </form>
+        </SheetContent>
+      </Sheet>
+
+      {/* API key reveal dialog — shown once after creation */}
+      <Dialog open={!!newAgentKey} onOpenChange={(open) => { if (!open) setNewAgentKey(null) }}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <KeyRound className="h-5 w-5" />
+              Agent Created — Save Your API Key
+            </DialogTitle>
+          </DialogHeader>
+          <div className="space-y-4">
+            <p className="text-sm text-muted-foreground">
+              This API key is only shown once. Copy it now and store it securely.
+            </p>
+            <div className="space-y-1">
+              <Label className="text-xs text-muted-foreground">Agent</Label>
+              <p className="font-medium">{newAgentKey?.name}</p>
+            </div>
+            <div className="space-y-1">
+              <Label className="text-xs text-muted-foreground">Private Namespace</Label>
+              <p className="font-mono text-sm">{newAgentKey?.namespaceSlug}</p>
+            </div>
+            <div className="space-y-1">
+              <Label className="text-xs text-muted-foreground">API Key</Label>
+              <CopyInput value={newAgentKey?.apiKey ?? ""} />
+            </div>
+            <Button className="w-full" onClick={() => setNewAgentKey(null)}>Done</Button>
+          </div>
+        </DialogContent>
+      </Dialog>
 
       {/* Assign to namespace dialog */}
       <Dialog open={!!assignAgent} onOpenChange={(open) => { if (!open) setAssignAgent(null) }}>
