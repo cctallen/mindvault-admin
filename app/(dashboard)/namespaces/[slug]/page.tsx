@@ -1011,16 +1011,7 @@ export default function NamespaceDetailPage({ params }: { params: Promise<{ slug
     enabled: !!session?.accessToken,
   })
 
-  if (isLoading) {
-    return <div className="text-muted-foreground">Loading namespace...</div>
-  }
-
-  if (!namespace) {
-    return <div className="text-destructive">Namespace not found.</div>
-  }
-
-  const token = session!.accessToken
-  const userId = session?.userId ?? ""
+  // All hooks must be declared before any conditional returns
   const [editOpen, setEditOpen] = useState(false)
 
   const editSchema = z.object({
@@ -1036,12 +1027,12 @@ export default function NamespaceDetailPage({ params }: { params: Promise<{ slug
     useForm<EditForm>({ resolver: zodResolver(editSchema) })
 
   const updateMutation = useMutation({
-    mutationFn: (data: EditForm) => updateNamespace(token, namespace.id, {
+    mutationFn: (data: EditForm) => updateNamespace(session!.accessToken, namespace!.id, {
       displayName: data.displayName,
       description: data.description ?? "",
       isPublic: data.isPublic,
     }),
-    onSuccess: (updated) => {
+    onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["namespace", slug] })
       toast({ title: "Namespace updated" })
       setEditOpen(false)
@@ -1050,11 +1041,23 @@ export default function NamespaceDetailPage({ params }: { params: Promise<{ slug
   })
 
   const openEdit = () => {
+    if (!namespace) return
     setEditVal("displayName", namespace.displayName)
     setEditVal("description", namespace.description ?? "")
     setEditVal("isPublic", namespace.isPublic)
     setEditOpen(true)
   }
+
+  if (isLoading) {
+    return <div className="text-muted-foreground">Loading namespace...</div>
+  }
+
+  if (!namespace) {
+    return <div className="text-destructive">Namespace not found.</div>
+  }
+
+  const token = session!.accessToken
+  const userId = session?.userId ?? ""
 
   return (
     <div className="space-y-6">
