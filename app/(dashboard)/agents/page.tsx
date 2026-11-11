@@ -102,7 +102,7 @@ export default function AgentsPage() {
         displayName: data.name,
         description: `${data.name} private agent memory namespace`,
         isPublic: false,
-        ownerId: session?.userId ?? "",
+        ownerId: (session?.userId ?? "") as string,
       })
       // 2. Create the agent scoped to that namespace
       const agent = await createAgent(token, ns.id, {
