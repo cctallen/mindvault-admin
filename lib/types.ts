@@ -60,11 +60,21 @@ export interface Memory {
 }
 
 export interface Member {
-  id: string
   userId: string
-  namespaceId: string
+  email: string
+  fullName: string
   role: NamespaceRole
-  user?: User
+  roleName?: string
+  joinedAt?: string
+}
+
+export interface AppUser {
+  id: string
+  email: string
+  firstName: string
+  lastName: string
+  fullName: string
+  createdAt: string
 }
 
 export interface PagedResult<T> {

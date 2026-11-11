@@ -7,6 +7,7 @@ import type {
   Member,
   Secret,
   SecretReveal,
+  AppUser,
 } from "@/lib/types"
 
 // Server-side: hit the API directly (with self-signed cert bypass via proxy route)
@@ -280,6 +281,14 @@ export async function rotateAgentKey(
 }
 
 // Users
+export async function getUsers(
+  token: string
+): Promise<AppUser[]> {
+  return apiFetch<AppUser[]>("/api/users", {
+    headers: authHeaders(token),
+  })
+}
+
 export async function lookupUserByEmail(
   token: string,
   email: string

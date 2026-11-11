@@ -906,7 +906,8 @@ function MembersTab({ namespaceId, token }: { namespaceId: string; token: string
     {
       id: "avatar",
       cell: ({ row }: { row: { original: Member } }) => {
-        const initials = row.original.userId.slice(0, 2).toUpperCase()
+        const name = row.original.fullName || row.original.email
+        const initials = name.split(" ").map((p: string) => p[0]).slice(0, 2).join("").toUpperCase() || "?"
         return (
           <Avatar className="h-8 w-8">
             <AvatarFallback>{initials}</AvatarFallback>
@@ -915,9 +916,18 @@ function MembersTab({ namespaceId, token }: { namespaceId: string; token: string
       },
     },
     {
-      accessorKey: "userId",
-      header: "User ID",
-      cell: ({ row }: { row: { original: Member } }) => <span className="font-mono text-sm">{row.original.userId}</span>,
+      accessorKey: "fullName",
+      header: "Name",
+      cell: ({ row }: { row: { original: Member } }) => (
+        <span className="font-medium">{row.original.fullName || <span className="text-muted-foreground italic">—</span>}</span>
+      ),
+    },
+    {
+      accessorKey: "email",
+      header: "Email",
+      cell: ({ row }: { row: { original: Member } }) => (
+        <span className="text-sm text-muted-foreground">{row.original.email}</span>
+      ),
     },
     {
       accessorKey: "role",
