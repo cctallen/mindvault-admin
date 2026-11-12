@@ -310,6 +310,41 @@ export async function lookupUserByEmail(
   )
 }
 
+export async function getUserById(token: string, id: string): Promise<AppUser> {
+  return apiFetch<AppUser>(`/api/users/${id}`, { headers: authHeaders(token) })
+}
+
+export async function updateUser(
+  token: string,
+  id: string,
+  data: { firstName: string; lastName: string; email: string }
+): Promise<AppUser> {
+  return apiFetch<AppUser>(`/api/users/${id}`, {
+    method: "PUT",
+    headers: authHeaders(token),
+    body: JSON.stringify(data),
+  })
+}
+
+export async function deleteUser(token: string, id: string): Promise<void> {
+  return apiFetch<void>(`/api/users/${id}`, {
+    method: "DELETE",
+    headers: authHeaders(token),
+  })
+}
+
+export async function resetUserPassword(
+  token: string,
+  id: string,
+  newPassword: string
+): Promise<void> {
+  return apiFetch<void>(`/api/users/${id}/reset-password`, {
+    method: "POST",
+    headers: authHeaders(token),
+    body: JSON.stringify({ newPassword }),
+  })
+}
+
 // Members
 export async function getMembers(
   token: string,
