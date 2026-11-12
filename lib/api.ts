@@ -281,6 +281,17 @@ export async function rotateAgentKey(
 }
 
 // Users
+export async function createUser(
+  token: string,
+  data: { email: string; password: string; firstName: string; lastName: string }
+): Promise<void> {
+  return apiFetch<void>("/api/auth/register", {
+    method: "POST",
+    headers: authHeaders(token),
+    body: JSON.stringify(data),
+  })
+}
+
 export async function getUsers(
   token: string
 ): Promise<AppUser[]> {
