@@ -52,10 +52,13 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
           const payload = JSON.parse(Buffer.from(payloadB64, "base64url").toString())
           const userId: string =
             payload["http://schemas.xmlsoap.org/ws/2005/05/identity/claims/nameidentifier"] ?? ""
+          const roleRaw = payload["http://schemas.microsoft.com/ws/2008/06/identity/claims/role"]
+          const role: string = Array.isArray(roleRaw) ? roleRaw[0] : (roleRaw ?? "User")
           return {
             id: userId,
             email: credentials.email as string,
             userId,
+            role,
             accessTokenExpires: (payload.exp as number) * 1000,
             ...tokens,
           }
@@ -74,6 +77,7 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
         token.refreshToken = (user as Record<string, unknown>).refreshToken as string
         token.accessTokenExpires = (user as Record<string, unknown>).accessTokenExpires as number
         token.userId = (user as Record<string, unknown>).userId as string
+        token.role = (user as Record<string, unknown>).role as string
         return token
       }
 
@@ -89,6 +93,7 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
     async session({ session, token }) {
       session.accessToken = token.accessToken as string
       session.userId = token.userId as string
+      session.role = token.role as string | undefined
       session.error = token.error as string | undefined
       return session
     },

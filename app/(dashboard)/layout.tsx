@@ -18,7 +18,12 @@ export default async function DashboardLayout({
       <div className="flex-1 ml-60 flex flex-col">
         <header className="sticky top-0 z-40 border-b bg-background/80 backdrop-blur-md">
           <div className="flex h-14 items-center justify-end px-6">
-            <div className="flex items-center gap-2">
+            <div className="flex items-center gap-2.5">
+              {session.role && (
+                <span className="text-xs font-medium px-2 py-0.5 rounded-full bg-primary/10 text-primary border border-primary/20">
+                  {session.role}
+                </span>
+              )}
               <div className="h-7 w-7 rounded-full bg-primary/10 ring-1 ring-primary/20 flex items-center justify-center">
                 <span className="text-[10px] font-bold text-primary">
                   {session.user?.email?.[0]?.toUpperCase()}
