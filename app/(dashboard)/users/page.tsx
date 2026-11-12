@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from "react"
 import { useSession } from "next-auth/react"
+import { useRouter } from "next/navigation"
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query"
 import { useForm } from "react-hook-form"
 import { zodResolver } from "@hookform/resolvers/zod"
@@ -45,6 +46,16 @@ type ResetForm = z.infer<typeof resetSchema>
 export default function UsersPage() {
   const { data: session } = useSession()
   const token = session?.accessToken ?? ""
+  const router = useRouter()
+
+  // Redirect non-admins
+  useEffect(() => {
+    if (session && session.role !== "Admin") {
+      router.replace("/dashboard")
+    }
+  }, [session, router])
+
+  if (!session || session.role !== "Admin") return null
   const queryClient = useQueryClient()
   const { toast } = useToast()
 

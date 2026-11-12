@@ -14,7 +14,7 @@ export default async function DashboardLayout({
 
   return (
     <div className="flex min-h-screen">
-      <AppSidebar />
+      <AppSidebar role={session.role} />
       <div className="flex-1 ml-60 flex flex-col">
         <header className="sticky top-0 z-40 border-b bg-background/80 backdrop-blur-md">
           <div className="flex h-14 items-center justify-end px-6">
