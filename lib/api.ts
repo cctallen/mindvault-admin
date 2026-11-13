@@ -3,6 +3,7 @@ import type {
   Namespace,
   PagedResult,
   Memory,
+  MemoryAccessLog,
   Agent,
   Member,
   Secret,
@@ -200,6 +201,34 @@ export async function deleteMemory(
       method: "DELETE",
       headers: authHeaders(token),
     }
+  )
+}
+
+export async function getMemoryAccessLogs(
+  token: string,
+  namespaceId: string,
+  params?: {
+    page?: number
+    pageSize?: number
+    agentId?: string
+    memoryId?: string
+    operation?: number
+    since?: string
+    until?: string
+  }
+): Promise<PagedResult<MemoryAccessLog>> {
+  const q = new URLSearchParams()
+  if (params?.page) q.set("page", String(params.page))
+  if (params?.pageSize) q.set("pageSize", String(params.pageSize))
+  if (params?.agentId) q.set("agentId", params.agentId)
+  if (params?.memoryId) q.set("memoryId", params.memoryId)
+  if (params?.operation !== undefined) q.set("operation", String(params.operation))
+  if (params?.since) q.set("since", params.since)
+  if (params?.until) q.set("until", params.until)
+  const qs = q.toString() ? `?${q.toString()}` : ""
+  return apiFetch<PagedResult<MemoryAccessLog>>(
+    `/api/namespaces/${namespaceId}/memories/access-logs${qs}`,
+    { headers: authHeaders(token) }
   )
 }
 

@@ -32,8 +32,9 @@ import {
   revealSecret,
   deleteSecret,
   updateNamespace,
+  getMemoryAccessLogs,
 } from "@/lib/api"
-import type { Memory, Agent, Member, Secret } from "@/lib/types"
+import type { Memory, Agent, Member, Secret, MemoryAccessLog } from "@/lib/types"
 import { MemoryType, MemoryVisibility, NamespaceRole, NAMESPACE_ROLE_LABELS } from "@/lib/types"
 import { DataTable } from "@/components/data-table"
 import { ConfirmDialog } from "@/components/confirm-dialog"
@@ -49,7 +50,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from 
 import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetTrigger } from "@/components/ui/sheet"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { Avatar, AvatarFallback } from "@/components/ui/avatar"
-import { Plus, Trash2, RefreshCw, ChevronLeft, ChevronRight, Link2, Unlink, Eye, EyeOff, Pencil, Copy, Check, KeyRound, Settings } from "lucide-react"
+import { Plus, Trash2, RefreshCw, ChevronLeft, ChevronRight, Link2, Unlink, Eye, EyeOff, Pencil, Copy, Check, KeyRound, Settings, Activity } from "lucide-react"
 import { useToast } from "@/hooks/use-toast"
 import { useDebounce } from "@/hooks/use-debounce"
 
@@ -843,6 +844,157 @@ function SecretsTab({ namespaceId, token }: { namespaceId: string; token: string
   )
 }
 
+// ——— ACCESS LOGS TAB ———
+
+const OPERATION_LABELS: Record<string, { label: string; color: string }> = {
+  Get: { label: "Get", color: "bg-blue-100 text-blue-700 dark:bg-blue-900 dark:text-blue-300" },
+  List: { label: "List", color: "bg-purple-100 text-purple-700 dark:bg-purple-900 dark:text-purple-300" },
+  Search: { label: "Search", color: "bg-amber-100 text-amber-700 dark:bg-amber-900 dark:text-amber-300" },
+}
+
+function AccessLogsTab({ namespaceId, token }: { namespaceId: string; token: string }) {
+  const [page, setPage] = useState(1)
+  const [agentFilter, setAgentFilter] = useState("")
+  const [opFilter, setOpFilter] = useState<string>("all")
+
+  const { data: agents = [] } = useQuery({
+    queryKey: ["agents", namespaceId],
+    queryFn: () => getAgents(token, namespaceId),
+  })
+
+  const { data: logsData, isLoading } = useQuery({
+    queryKey: ["access-logs", namespaceId, page, agentFilter, opFilter],
+    queryFn: () => getMemoryAccessLogs(token, namespaceId, {
+      page,
+      pageSize: 50,
+      agentId: agentFilter || undefined,
+      operation: opFilter !== "all" ? Number(opFilter) : undefined,
+    }),
+  })
+
+  const logs = logsData?.items ?? []
+  const total = logsData?.total ?? 0
+  const pageSize = 50
+
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const columns: any[] = [
+    {
+      accessorKey: "accessedAt",
+      header: "Time",
+      cell: ({ row }: { row: { original: MemoryAccessLog } }) => (
+        <span className="text-sm tabular-nums text-muted-foreground whitespace-nowrap">
+          {new Date(row.original.accessedAt).toLocaleString()}
+        </span>
+      ),
+    },
+    {
+      accessorKey: "agentName",
+      header: "Agent",
+      cell: ({ row }: { row: { original: MemoryAccessLog } }) => (
+        <div className="flex flex-col gap-0.5">
+          <span className="font-medium text-sm">{row.original.agentName}</span>
+          <span className="text-xs font-mono text-muted-foreground">{row.original.agentId.slice(0, 8)}…</span>
+        </div>
+      ),
+    },
+    {
+      accessorKey: "operation",
+      header: "Operation",
+      cell: ({ row }: { row: { original: MemoryAccessLog } }) => {
+        const op = row.original.operation
+        const style = OPERATION_LABELS[op] ?? { label: op, color: "bg-gray-100 text-gray-700" }
+        return (
+          <span className={`inline-flex items-center px-2 py-0.5 rounded text-xs font-semibold ${style.color}`}>
+            {style.label}
+          </span>
+        )
+      },
+    },
+    {
+      accessorKey: "recordCount",
+      header: "Records",
+      cell: ({ row }: { row: { original: MemoryAccessLog } }) => (
+        <span className="text-sm text-center tabular-nums">{row.original.recordCount}</span>
+      ),
+    },
+    {
+      accessorKey: "query",
+      header: "Query",
+      cell: ({ row }: { row: { original: MemoryAccessLog } }) => (
+        <span className="text-sm text-muted-foreground font-mono">
+          {row.original.query ? `"${row.original.query.slice(0, 60)}${row.original.query.length > 60 ? "…" : ""}"` : "—"}
+        </span>
+      ),
+    },
+    {
+      accessorKey: "memoryId",
+      header: "Memory ID",
+      cell: ({ row }: { row: { original: MemoryAccessLog } }) => (
+        <span className="text-xs font-mono text-muted-foreground">
+          {row.original.memoryId ? `${row.original.memoryId.slice(0, 8)}…` : "—"}
+        </span>
+      ),
+    },
+  ]
+
+  return (
+    <div className="space-y-4">
+      <div className="flex items-center gap-3 flex-wrap">
+        <Select value={agentFilter} onValueChange={(v) => { setAgentFilter(v === "all" ? "" : (v ?? "")); setPage(1) }}>
+          <SelectTrigger className="w-48">
+            <SelectValue placeholder="All agents" />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="all">All agents</SelectItem>
+            {agents.map((a) => (
+              <SelectItem key={a.id} value={a.id}>{a.name}</SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
+
+        <Select value={opFilter} onValueChange={(v) => { setOpFilter(v ?? "all"); setPage(1) }}>
+          <SelectTrigger className="w-36">
+            <SelectValue placeholder="All ops" />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="all">All ops</SelectItem>
+            <SelectItem value="0">Get</SelectItem>
+            <SelectItem value="1">List</SelectItem>
+            <SelectItem value="2">Search</SelectItem>
+          </SelectContent>
+        </Select>
+
+        <span className="text-sm text-muted-foreground ml-auto">
+          {total.toLocaleString()} total entries
+        </span>
+      </div>
+
+      <DataTable columns={columns} data={logs} isLoading={isLoading} />
+
+      {logsData && (
+        <div className="flex items-center justify-between">
+          <p className="text-sm text-muted-foreground">
+            Page {page} of {Math.max(1, Math.ceil(total / pageSize))}
+          </p>
+          <div className="flex gap-2">
+            <Button variant="outline" size="sm" disabled={page === 1} onClick={() => setPage((p) => p - 1)}>
+              <ChevronLeft className="h-4 w-4" />
+            </Button>
+            <Button
+              variant="outline"
+              size="sm"
+              disabled={page * pageSize >= total}
+              onClick={() => setPage((p) => p + 1)}
+            >
+              <ChevronRight className="h-4 w-4" />
+            </Button>
+          </div>
+        </div>
+      )}
+    </div>
+  )
+}
+
 // ——— MEMBERS TAB ———
 
 function MembersTab({ namespaceId, token }: { namespaceId: string; token: string }) {
@@ -1128,6 +1280,10 @@ export default function NamespaceDetailPage({ params }: { params: Promise<{ slug
           <TabsTrigger value="agents">Agents</TabsTrigger>
           <TabsTrigger value="secrets">Secrets</TabsTrigger>
           <TabsTrigger value="members">Members</TabsTrigger>
+          <TabsTrigger value="access-logs">
+            <Activity className="h-3.5 w-3.5 mr-1.5" />
+            Access Logs
+          </TabsTrigger>
         </TabsList>
         <TabsContent value="memories" className="mt-6">
           <MemoriesTab namespaceId={namespace.id} token={token} />
@@ -1140,6 +1296,9 @@ export default function NamespaceDetailPage({ params }: { params: Promise<{ slug
         </TabsContent>
         <TabsContent value="members" className="mt-6">
           <MembersTab namespaceId={namespace.id} token={token} />
+        </TabsContent>
+        <TabsContent value="access-logs" className="mt-6">
+          <AccessLogsTab namespaceId={namespace.id} token={token} />
         </TabsContent>
       </Tabs>
     </div>

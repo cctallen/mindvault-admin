@@ -59,6 +59,18 @@ export interface Memory {
   createdAt: string
 }
 
+export interface MemoryAccessLog {
+  id: string
+  namespaceId: string
+  memoryId?: string
+  agentId: string
+  agentName: string
+  operation: string  // "Get" | "List" | "Search"
+  query?: string
+  recordCount: number
+  accessedAt: string
+}
+
 export interface Member {
   userId: string
   email: string
