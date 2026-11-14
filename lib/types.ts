@@ -37,12 +37,29 @@ export interface Namespace {
   createdAt: string
 }
 
+export enum AgentPermissions {
+  None         = 0,
+  Read         = 1,
+  Write        = 2,
+  ReadSecrets  = 4,
+  WriteSecrets = 8,
+  ReadOnly     = 1,        // Read
+  ReadWrite    = 3,        // Read | Write
+  Full         = 15,       // Read | Write | ReadSecrets | WriteSecrets
+}
+
+export interface AgentNamespaceEntry {
+  namespaceId: string
+  permissions: AgentPermissions
+}
+
 export interface Agent {
   id: string
   name: string
   description: string
   apiKey?: string
   namespaceIds: string[]
+  namespacePermissions: AgentNamespaceEntry[]
   createdAt: string
 }
 

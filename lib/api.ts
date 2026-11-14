@@ -265,11 +265,26 @@ export async function createAgent(
 export async function addAgentToNamespace(
   token: string,
   agentId: string,
-  namespaceId: string
+  namespaceId: string,
+  permissions: number = 3 // ReadWrite default
 ): Promise<Agent> {
   return apiFetch<Agent>(`/api/agents/${agentId}/namespaces/${namespaceId}`, {
     method: "POST",
     headers: authHeaders(token),
+    body: JSON.stringify({ permissions }),
+  })
+}
+
+export async function updateAgentPermissions(
+  token: string,
+  agentId: string,
+  namespaceId: string,
+  permissions: number
+): Promise<Agent> {
+  return apiFetch<Agent>(`/api/agents/${agentId}/namespaces/${namespaceId}/permissions`, {
+    method: "PUT",
+    headers: authHeaders(token),
+    body: JSON.stringify({ permissions }),
   })
 }
 

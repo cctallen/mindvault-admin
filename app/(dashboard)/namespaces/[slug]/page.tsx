@@ -19,6 +19,7 @@ import {
   createAgent,
   deleteAgent,
   addAgentToNamespace,
+  updateAgentPermissions,
   removeAgentFromNamespace,
   rotateAgentKey,
   getMembers,
@@ -353,6 +354,7 @@ function AgentsTab({ namespaceId, token, userId }: { namespaceId: string; token:
   const [createOpen, setCreateOpen] = useState(false)
   const [assignOpen, setAssignOpen] = useState(false)
   const [selectedAgentId, setSelectedAgentId] = useState("")
+  const [selectedPermissions, setSelectedPermissions] = useState<number>(3) // ReadWrite
   const [newKey, setNewKey] = useState<string | null>(null)
   const [keyModalOpen, setKeyModalOpen] = useState(false)
 
@@ -408,16 +410,29 @@ function AgentsTab({ namespaceId, token, userId }: { namespaceId: string; token:
   })
 
   const assignMutation = useMutation({
-    mutationFn: (agentId: string) => addAgentToNamespace(token, agentId, namespaceId),
+    mutationFn: (agentId: string) => addAgentToNamespace(token, agentId, namespaceId, selectedPermissions),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["agents", namespaceId] })
       queryClient.invalidateQueries({ queryKey: ["agents-all"] })
       toast({ title: "Agent assigned to namespace" })
       setSelectedAgentId("")
+      setSelectedPermissions(3)
       setAssignOpen(false)
     },
     onError: (err) => {
       toast({ title: "Failed to assign agent", description: err instanceof Error ? err.message : "Unknown", variant: "destructive" })
+    },
+  })
+
+  const updatePermsMutation = useMutation({
+    mutationFn: ({ agentId, permissions }: { agentId: string; permissions: number }) =>
+      updateAgentPermissions(token, agentId, namespaceId, permissions),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["agents", namespaceId] })
+      toast({ title: "Permissions updated" })
+    },
+    onError: (err) => {
+      toast({ title: "Failed to update permissions", description: err instanceof Error ? err.message : "Unknown", variant: "destructive" })
     },
   })
 
@@ -482,6 +497,32 @@ function AgentsTab({ namespaceId, token, userId }: { namespaceId: string; token:
       ),
     },
     {
+      id: "permissions",
+      header: "Permissions",
+      cell: ({ row }: { row: { original: Agent } }) => {
+        const entry = row.original.namespacePermissions?.find(p => p.namespaceId === namespaceId)
+        const perms = Number(entry?.permissions ?? 3)
+        const label = perms === 15 ? "Full" : perms === 5 ? "Read + Secrets" : perms === 3 ? "Read/Write" : perms === 1 ? "Read only" : `Custom (${perms})`
+        const color = perms === 15 ? "bg-purple-100 text-purple-700" : perms === 5 ? "bg-blue-100 text-blue-700" : perms === 3 ? "bg-green-100 text-green-700" : "bg-slate-100 text-slate-700"
+        return (
+          <Select
+            value={String(perms)}
+            onValueChange={(v) => updatePermsMutation.mutate({ agentId: row.original.id, permissions: Number(v) })}
+          >
+            <SelectTrigger className={`h-7 text-xs w-36 font-medium border-0 ${color}`}>
+              <SelectValue>{label}</SelectValue>
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="1">Read only</SelectItem>
+              <SelectItem value="3">Read + Write</SelectItem>
+              <SelectItem value="5">Read + Read Secrets</SelectItem>
+              <SelectItem value="15">Full access</SelectItem>
+            </SelectContent>
+          </Select>
+        )
+      },
+    },
+    {
       accessorKey: "createdAt",
       header: "Created",
       cell: ({ row }: { row: { original: Agent } }) =>
@@ -533,7 +574,7 @@ function AgentsTab({ namespaceId, token, userId }: { namespaceId: string; token:
     <div className="space-y-6">
       <div className="flex justify-end gap-2">
         {/* Assign existing agent */}
-        <Dialog open={assignOpen} onOpenChange={(open) => { setAssignOpen(open); if (!open) setSelectedAgentId("") }}>
+        <Dialog open={assignOpen} onOpenChange={(open) => { setAssignOpen(open); if (!open) { setSelectedAgentId(""); setSelectedPermissions(3) } }}>
           <DialogTrigger>
             <Button variant="outline"><Link2 className="h-4 w-4 mr-2" />Assign Existing</Button>
           </DialogTrigger>
@@ -558,6 +599,24 @@ function AgentsTab({ namespaceId, token, userId }: { namespaceId: string; token:
                         ))}
                       </SelectContent>
                     </Select>
+                  </div>
+                  <div className="space-y-2">
+                    <Label>Permissions</Label>
+                    <Select value={String(selectedPermissions)} onValueChange={(v) => setSelectedPermissions(Number(v))}>
+                      <SelectTrigger><SelectValue /></SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="1">Read only</SelectItem>
+                        <SelectItem value="3">Read + Write</SelectItem>
+                        <SelectItem value="5">Read + Read Secrets</SelectItem>
+                        <SelectItem value="15">Full access</SelectItem>
+                      </SelectContent>
+                    </Select>
+                    <p className="text-xs text-muted-foreground">
+                      {selectedPermissions === 1 && "Can read memories only"}
+                      {selectedPermissions === 3 && "Can read and write memories, no secrets"}
+                      {selectedPermissions === 5 && "Can read memories and secrets, no writes"}
+                      {selectedPermissions === 15 && "Full read/write access to memories and secrets"}
+                    </p>
                   </div>
                   <Button
                     className="w-full"
