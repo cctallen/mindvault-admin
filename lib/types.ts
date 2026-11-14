@@ -154,3 +154,39 @@ export const NAMESPACE_ROLE_LABELS: Record<number, string> = {
   2: "Writer",
   3: "Admin",
 }
+
+export enum OrgRole { Member = 1, Admin = 2, Owner = 3 }
+
+export interface Organization {
+  id: string
+  slug: string
+  displayName: string
+  description?: string
+  ownerId: string
+  memberCount: number
+  createdAt: string
+}
+
+export interface OrgMember {
+  userId: string
+  email: string
+  fullName: string
+  role: OrgRole
+  joinedAt: string
+}
+
+export interface OrgNamespace {
+  id: string
+  slug: string
+  displayName: string
+  description?: string
+  isPublic: boolean
+  ownerId: string
+  createdAt: string
+}
+
+export const ORG_ROLE_LABELS: Record<number, string> = {
+  1: "Member",
+  2: "Admin",
+  3: "Owner",
+}

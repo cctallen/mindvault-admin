@@ -9,7 +9,11 @@ import type {
   Secret,
   SecretReveal,
   AppUser,
+  Organization,
+  OrgMember,
+  OrgNamespace,
 } from "@/lib/types"
+import { OrgRole } from "@/lib/types"
 
 // Server-side: hit the API directly (with self-signed cert bypass via proxy route)
 // Client-side (browser): route through /api/proxy to avoid mixed-content + cert issues
@@ -520,6 +524,95 @@ export async function deleteSecret(
   secretId: string
 ): Promise<void> {
   return apiFetch<void>(`/api/namespaces/${namespaceId}/secrets/${secretId}`, {
+    method: "DELETE",
+    headers: authHeaders(token),
+  })
+}
+
+// ─── Organizations ────────────────────────────────────────────────────────────
+export async function getOrganizations(token: string): Promise<Organization[]> {
+  return apiFetch<Organization[]>("/api/organizations", { headers: authHeaders(token) })
+}
+
+export async function createOrganization(
+  token: string,
+  data: { slug: string; displayName: string; description?: string }
+): Promise<Organization> {
+  return apiFetch<Organization>("/api/organizations", {
+    method: "POST",
+    headers: authHeaders(token),
+    body: JSON.stringify(data),
+  })
+}
+
+export async function updateOrganization(
+  token: string,
+  id: string,
+  data: { displayName: string; description?: string }
+): Promise<Organization> {
+  return apiFetch<Organization>(`/api/organizations/${id}`, {
+    method: "PUT",
+    headers: authHeaders(token),
+    body: JSON.stringify(data),
+  })
+}
+
+export async function deleteOrganization(token: string, id: string): Promise<void> {
+  return apiFetch<void>(`/api/organizations/${id}`, {
+    method: "DELETE",
+    headers: authHeaders(token),
+  })
+}
+
+export async function getOrgMembers(token: string, orgId: string): Promise<OrgMember[]> {
+  return apiFetch<OrgMember[]>(`/api/organizations/${orgId}/members`, { headers: authHeaders(token) })
+}
+
+export async function addOrgMember(
+  token: string,
+  orgId: string,
+  data: { userId?: string; email?: string; role: OrgRole }
+): Promise<void> {
+  return apiFetch<void>(`/api/organizations/${orgId}/members`, {
+    method: "POST",
+    headers: authHeaders(token),
+    body: JSON.stringify({ userId: data.userId ?? "00000000-0000-0000-0000-000000000000", email: data.email, role: data.role }),
+  })
+}
+
+export async function updateOrgMemberRole(
+  token: string,
+  orgId: string,
+  userId: string,
+  role: OrgRole
+): Promise<void> {
+  return apiFetch<void>(`/api/organizations/${orgId}/members/${userId}`, {
+    method: "PUT",
+    headers: authHeaders(token),
+    body: JSON.stringify({ role }),
+  })
+}
+
+export async function removeOrgMember(token: string, orgId: string, userId: string): Promise<void> {
+  return apiFetch<void>(`/api/organizations/${orgId}/members/${userId}`, {
+    method: "DELETE",
+    headers: authHeaders(token),
+  })
+}
+
+export async function getOrgNamespaces(token: string, orgId: string): Promise<OrgNamespace[]> {
+  return apiFetch<OrgNamespace[]>(`/api/organizations/${orgId}/namespaces`, { headers: authHeaders(token) })
+}
+
+export async function attachNamespaceToOrg(token: string, orgId: string, namespaceId: string): Promise<void> {
+  return apiFetch<void>(`/api/organizations/${orgId}/namespaces/${namespaceId}`, {
+    method: "POST",
+    headers: authHeaders(token),
+  })
+}
+
+export async function detachNamespaceFromOrg(token: string, orgId: string, namespaceId: string): Promise<void> {
+  return apiFetch<void>(`/api/organizations/${orgId}/namespaces/${namespaceId}`, {
     method: "DELETE",
     headers: authHeaders(token),
   })
