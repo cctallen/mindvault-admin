@@ -87,6 +87,7 @@ export interface AppUser {
   lastName: string
   fullName: string
   createdAt: string
+  roles: string[]
 }
 
 export interface PagedResult<T> {

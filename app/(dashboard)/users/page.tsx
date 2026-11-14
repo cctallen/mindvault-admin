@@ -7,7 +7,7 @@ import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query"
 import { useForm } from "react-hook-form"
 import { zodResolver } from "@hookform/resolvers/zod"
 import { z } from "zod"
-import { getUsers, createUser, updateUser, deleteUser, resetUserPassword } from "@/lib/api"
+import { getUsers, createUser, updateUser, deleteUser, resetUserPassword, assignUserRole, removeUserRole } from "@/lib/api"
 import type { AppUser } from "@/lib/types"
 import { DataTable } from "@/components/data-table"
 import { ConfirmDialog } from "@/components/confirm-dialog"
@@ -17,7 +17,7 @@ import { Button } from "@/components/ui/button"
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
-import { Plus, Pencil, KeyRound, Trash2 } from "lucide-react"
+import { Plus, Pencil, KeyRound, Trash2, ShieldCheck, ShieldOff } from "lucide-react"
 import { useToast } from "@/hooks/use-toast"
 
 // ─── Schemas ────────────────────────────────────────────────
@@ -166,6 +166,21 @@ export default function UsersPage() {
       }),
   })
 
+  const roleMutation = useMutation({
+    mutationFn: ({ id, isAdmin }: { id: string; isAdmin: boolean }) =>
+      isAdmin ? removeUserRole(token, id, "Admin") : assignUserRole(token, id, "Admin"),
+    onSuccess: (_, { isAdmin }) => {
+      queryClient.invalidateQueries({ queryKey: ["users"] })
+      toast({ title: isAdmin ? "Admin role removed" : "Admin role assigned" })
+    },
+    onError: (err) =>
+      toast({
+        title: "Failed to update role",
+        description: err instanceof Error ? err.message : "Unknown error",
+        variant: "destructive",
+      }),
+  })
+
   // ─── Columns ─────────────────────────────────────────────
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const columns: any[] = [
@@ -219,15 +234,22 @@ export default function UsersPage() {
     },
     {
       id: "you",
-      cell: ({ row }: { row: { original: AppUser } }) =>
-        row.original.id === session?.userId ? (
-          <Badge variant="secondary">You</Badge>
-        ) : null,
+      cell: ({ row }: { row: { original: AppUser } }) => {
+        const u = row.original
+        const isAdmin = u.roles?.includes("Admin")
+        return (
+          <div className="flex items-center gap-1.5">
+            {isAdmin && <Badge variant="default">Admin</Badge>}
+            {u.id === session?.userId && <Badge variant="secondary">You</Badge>}
+          </div>
+        )
+      },
     },
     {
       id: "actions",
       cell: ({ row }: { row: { original: AppUser } }) => {
         const isSelf = row.original.id === session?.userId
+        const isAdmin = row.original.roles?.includes("Admin")
         return (
           <div className="flex items-center gap-2">
             {/* Edit */}
@@ -249,6 +271,29 @@ export default function UsersPage() {
             >
               <KeyRound className="h-4 w-4" />
             </Button>
+
+            {/* Promote / demote admin */}
+            <ConfirmDialog
+              title={isAdmin ? "Remove Admin Role" : "Make Admin"}
+              description={
+                isAdmin
+                  ? `Remove admin access from ${row.original.email}?`
+                  : `Grant admin access to ${row.original.email}? They will have full access to all users and namespaces.`
+              }
+              onConfirm={() => roleMutation.mutateAsync({ id: row.original.id, isAdmin: !!isAdmin })}
+              isLoading={roleMutation.isPending}
+              trigger={
+                <Button
+                  variant={isAdmin ? "outline" : "outline"}
+                  size="sm"
+                  disabled={isSelf}
+                  title={isSelf ? "Cannot modify your own role" : isAdmin ? "Remove admin" : "Make admin"}
+                  className={isAdmin ? "text-orange-500 border-orange-200 hover:bg-orange-50" : "text-indigo-500 border-indigo-200 hover:bg-indigo-50"}
+                >
+                  {isAdmin ? <ShieldOff className="h-4 w-4" /> : <ShieldCheck className="h-4 w-4" />}
+                </Button>
+              }
+            />
 
             {/* Delete */}
             <ConfirmDialog

@@ -374,6 +374,29 @@ export async function resetUserPassword(
   })
 }
 
+export async function assignUserRole(
+  token: string,
+  id: string,
+  role: string
+): Promise<void> {
+  return apiFetch<void>(`/api/users/${id}/roles`, {
+    method: "POST",
+    headers: authHeaders(token),
+    body: JSON.stringify({ role }),
+  })
+}
+
+export async function removeUserRole(
+  token: string,
+  id: string,
+  role: string
+): Promise<void> {
+  return apiFetch<void>(`/api/users/${id}/roles/${role}`, {
+    method: "DELETE",
+    headers: authHeaders(token),
+  })
+}
+
 // Members
 export async function getMembers(
   token: string,
