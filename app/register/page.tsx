@@ -17,6 +17,7 @@ const registerSchema = z
   .object({
     firstName: z.string().min(1, "First name is required"),
     lastName: z.string().min(1, "Last name is required"),
+    organizationName: z.string().min(1, "Organization name is required").max(100, "Must be 100 characters or fewer"),
     email: z.string().email("Invalid email address"),
     password: z.string().min(8, "Password must be at least 8 characters"),
     confirmPassword: z.string(),
@@ -47,6 +48,7 @@ export default function RegisterPage() {
         password: data.password,
         firstName: data.firstName,
         lastName: data.lastName,
+        organizationName: data.organizationName,
       })
       const result = await signIn("credentials", {
         email: data.email,
@@ -89,6 +91,13 @@ export default function RegisterPage() {
                   <p className="text-sm text-destructive">{errors.lastName.message}</p>
                 )}
               </div>
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="organizationName">Organization Name</Label>
+              <Input id="organizationName" {...register("organizationName")} placeholder="Acme Corp" />
+              {errors.organizationName && (
+                <p className="text-sm text-destructive">{errors.organizationName.message}</p>
+              )}
             </div>
             <div className="space-y-2">
               <Label htmlFor="email">Email</Label>

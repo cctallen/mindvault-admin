@@ -64,6 +64,7 @@ export async function register(data: {
   password: string
   firstName: string
   lastName: string
+  organizationName: string
 }): Promise<void> {
   return apiFetch<void>("/api/auth/register", {
     method: "POST",
